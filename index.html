@@ -1,0 +1,1621 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=5.0, user-scalable=yes">
+    <meta name="apple-mobile-web-app-capable" content="yes">
+    <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
+    <meta name="theme-color" content="#667eea">
+    <title>🔥 Locked In App</title>
+    
+    <!-- Favicon -->
+    <link rel="icon" href="data:image/svg+xml,<svg xmlns=%22http://www.w3.org/2000/svg%22 viewBox=%220 0 100 100%22><text y=%22.9em%22 font-size=%2290%22>🔥</text></svg>">
+    <link rel="apple-touch-icon" href="data:image/svg+xml,<svg xmlns=%22http://www.w3.org/2000/svg%22 viewBox=%220 0 100 100%22><text y=%22.9em%22 font-size=%2290%22>🔥</text></svg>">
+    
+    <!-- React -->
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/react/18.2.0/umd/react.production.min.js"></script>
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/react-dom/18.2.0/umd/react-dom.production.min.js"></script>
+    <script src="https://cdn.jsdelivr.net/npm/@babel/standalone/babel.min.js"></script>
+    
+    <!-- Tailwind -->
+    <script src="https://cdn.tailwindcss.com"></script>
+    
+    <!-- Firebase v9 (modular) -->
+    <script type="module">
+        import { initializeApp } from 'https://www.gstatic.com/firebasejs/10.7.1/firebase-app.js';
+        import { getAuth, createUserWithEmailAndPassword, signInWithEmailAndPassword, onAuthStateChanged, signOut } from 'https://www.gstatic.com/firebasejs/10.7.1/firebase-auth.js';
+        import { getFirestore, doc, setDoc, getDoc, onSnapshot, collection, updateDoc, deleteField } from 'https://www.gstatic.com/firebasejs/10.7.1/firebase-firestore.js';
+        
+        // Make Firebase available globally
+        window.firebaseModules = {
+            initializeApp,
+            getAuth,
+            createUserWithEmailAndPassword,
+            signInWithEmailAndPassword,
+            onAuthStateChanged,
+            signOut,
+            getFirestore,
+            doc,
+            setDoc,
+            getDoc,
+            onSnapshot,
+            collection,
+            updateDoc,
+            deleteField
+        };
+    </script>
+    
+    <style>
+        * {
+            -webkit-tap-highlight-color: transparent;
+            -webkit-touch-callout: none;
+        }
+        
+        body {
+            margin: 0;
+            font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', 'Roboto', 'Oxygen', 'Ubuntu', 'Cantarell', sans-serif;
+            background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+            min-height: 100vh;
+            overscroll-behavior: none;
+        }
+        
+        .glass {
+            background: rgba(255, 255, 255, 0.1);
+            backdrop-filter: blur(10px);
+            -webkit-backdrop-filter: blur(10px);
+            border: 1px solid rgba(255, 255, 255, 0.2);
+        }
+        
+        .streak-flame {
+            animation: flicker 1.5s infinite;
+        }
+        
+        @keyframes flicker {
+            0%, 100% { opacity: 1; }
+            50% { opacity: 0.8; }
+        }
+        
+        .sync-indicator {
+            animation: pulse 2s infinite;
+        }
+        
+        @keyframes pulse {
+            0%, 100% { opacity: 1; }
+            50% { opacity: 0.5; }
+        }
+        
+        /* Mobile-specific improvements */
+        @media (max-width: 768px) {
+            body {
+                font-size: 16px; /* Prevents iOS zoom on input focus */
+            }
+            
+            input, select, textarea, button {
+                font-size: 16px !important; /* Prevents iOS zoom */
+            }
+            
+            .glass {
+                backdrop-filter: blur(8px);
+                -webkit-backdrop-filter: blur(8px);
+            }
+            
+            /* Larger touch targets for mobile */
+            button {
+                min-height: 44px;
+                min-width: 44px;
+            }
+            
+            /* Better spacing on mobile */
+            .mobile-compact {
+                padding: 0.75rem !important;
+            }
+        }
+        
+        /* iOS-specific fixes */
+        @supports (-webkit-touch-callout: none) {
+            body {
+                min-height: -webkit-fill-available;
+            }
+            
+            input, textarea, select {
+                -webkit-appearance: none;
+                border-radius: 0.5rem;
+            }
+        }
+        
+        /* Smooth scrolling */
+        * {
+            -webkit-overflow-scrolling: touch;
+        }
+        
+        /* Better button feedback on mobile */
+        button:active {
+            transform: scale(0.98);
+            transition: transform 0.1s;
+        }
+        
+        /* Prevent text selection on buttons */
+        button {
+            -webkit-user-select: none;
+            user-select: none;
+        }
+    </style>
+</head>
+<body>
+    <div id="root"></div>
+
+    <script type="text/babel">
+        const { useState, useEffect } = React;
+
+        // ==============================================
+        // FIREBASE CONFIGURATION
+        // ==============================================
+        const firebaseConfig = {
+            apiKey: "AIzaSyCwt-i1K7BhUIWDD5Mv2P3rJ1oaCAtR1EM",
+            authDomain: "locked-in-app-2b4a9.firebaseapp.com",
+            projectId: "locked-in-app-2b4a9",
+            storageBucket: "locked-in-app-2b4a9.firebasestorage.app",
+            messagingSenderId: "679543957870",
+            appId: "1:679543957870:web:d011a3f9a0aa159f4db97f"
+        };
+        // ==============================================
+
+        // Initialize Firebase (will happen after modules load)
+        let app, auth, db;
+        
+        const HabitTrackerApp = () => {
+            const [user, setUser] = useState(null);
+            const [loading, setLoading] = useState(true);
+            const [syncing, setSyncing] = useState(false);
+            const [habits, setHabits] = useState([]);
+            const [points, setPoints] = useState(0);
+            const [showAddHabit, setShowAddHabit] = useState(false);
+            const [conversionRate, setConversionRate] = useState({ money: 1, time: 10 });
+            const [activeTab, setActiveTab] = useState('today');
+            const [notifications, setNotifications] = useState([]);
+            const [deletedHabits, setDeletedHabits] = useState([]);
+            const [editingHabit, setEditingHabit] = useState(null);
+            const [categories, setCategories] = useState(['School', 'Home', 'Work', 'Personal']);
+            const [selectedCategory, setSelectedCategory] = useState('all');
+
+            // Initialize Firebase when modules are ready
+            useEffect(() => {
+                const initFirebase = () => {
+                    if (window.firebaseModules) {
+                        const { initializeApp, getAuth, getFirestore } = window.firebaseModules;
+                        app = initializeApp(firebaseConfig);
+                        auth = getAuth(app);
+                        db = getFirestore(app);
+                        
+                        // Listen for auth changes
+                        const { onAuthStateChanged } = window.firebaseModules;
+                        onAuthStateChanged(auth, (user) => {
+                            setUser(user);
+                            setLoading(false);
+                        });
+                    } else {
+                        setTimeout(initFirebase, 100);
+                    }
+                };
+                initFirebase();
+            }, []);
+
+            // Sync data with Firebase when user is logged in
+            useEffect(() => {
+                if (!user || !db) return;
+
+                const { onSnapshot, doc } = window.firebaseModules;
+                
+                // Subscribe to user's data
+                const unsubscribe = onSnapshot(doc(db, 'users', user.uid), (docSnap) => {
+                    if (docSnap.exists()) {
+                        const data = docSnap.data();
+                        setHabits(data.habits || []);
+                        setPoints(data.points || 0);
+                        setConversionRate(data.conversionRate || { money: 1, time: 10 });
+                        setDeletedHabits(data.deletedHabits || []);
+                        setCategories(data.categories || ['School', 'Home', 'Work', 'Personal']);
+                    }
+                    setSyncing(false);
+                });
+
+                return () => unsubscribe();
+            }, [user]);
+
+            // Save data to Firebase
+            const saveToFirebase = async (dataToSave) => {
+                if (!user || !db) return;
+                
+                setSyncing(true);
+                const { setDoc, doc } = window.firebaseModules;
+                
+                try {
+                    await setDoc(doc(db, 'users', user.uid), dataToSave, { merge: true });
+                } catch (error) {
+                    console.error('Error saving to Firebase:', error);
+                    addNotification('Failed to sync data', 'error');
+                }
+                setSyncing(false);
+            };
+
+            const difficultyPoints = {
+                easy: 1,
+                medium: 3,
+                hard: 5,
+                extreme: 10
+            };
+
+            const formatTime = (minutes) => {
+                if (minutes < 60) {
+                    return `${minutes} min`;
+                }
+                
+                const days = Math.floor(minutes / (24 * 60));
+                const hours = Math.floor((minutes % (24 * 60)) / 60);
+                const mins = Math.floor(minutes % 60);
+                
+                const parts = [];
+                if (days > 0) parts.push(`${days} day${days !== 1 ? 's' : ''}`);
+                if (hours > 0) parts.push(`${hours} hr${hours !== 1 ? 's' : ''}`);
+                if (mins > 0) parts.push(`${mins} min`);
+                
+                return parts.join(' ');
+            };
+
+            const getDaysUntilDeadline = (deadline) => {
+                if (!deadline) return null;
+                const now = new Date();
+                const deadlineDate = new Date(deadline);
+                const diffTime = deadlineDate - now;
+                const diffDays = Math.ceil(diffTime / (1000 * 60 * 60 * 24));
+                return diffDays;
+            };
+
+            const getDeadlineStatus = (deadline) => {
+                const days = getDaysUntilDeadline(deadline);
+                if (days === null) return null;
+                if (days < 0) return { text: 'Overdue', color: 'red', days };
+                if (days === 0) return { text: 'Due today!', color: 'orange', days };
+                if (days === 1) return { text: '1 day left', color: 'yellow', days };
+                return { text: `${days} days left`, color: 'green', days };
+            };
+
+            const addHabit = (habitData) => {
+                const newHabit = {
+                    id: Date.now(),
+                    ...habitData,
+                    category: habitData.category || 'Personal',
+                    duration: habitData.duration || 0,
+                    deadline: habitData.deadline || null,
+                    streak: 0,
+                    lastCompleted: null,
+                    completions: [],
+                    totalCompletions: 0
+                };
+                const updatedHabits = [...habits, newHabit];
+                setHabits(updatedHabits);
+                saveToFirebase({ habits: updatedHabits });
+                setShowAddHabit(false);
+                addNotification(`Added new ${habitData.type} habit: ${habitData.name}`, habitData.type === 'positive' ? 'success' : 'warning');
+            };
+
+            const addCategory = (categoryName) => {
+                if (categoryName.trim() && !categories.includes(categoryName.trim())) {
+                    const updatedCategories = [...categories, categoryName.trim()];
+                    setCategories(updatedCategories);
+                    saveToFirebase({ categories: updatedCategories });
+                    addNotification(`Category "${categoryName}" added`, 'success');
+                    return true;
+                }
+                return false;
+            };
+
+            const deleteCategory = (categoryName) => {
+                if (categories.length <= 1) {
+                    addNotification('You must have at least one category', 'error');
+                    return false;
+                }
+                const updatedCategories = categories.filter(cat => cat !== categoryName);
+                setCategories(updatedCategories);
+                
+                const updatedHabits = habits.map(habit => {
+                    if (habit.category === categoryName) {
+                        return { ...habit, category: updatedCategories[0] };
+                    }
+                    return habit;
+                });
+                setHabits(updatedHabits);
+                saveToFirebase({ 
+                    categories: updatedCategories,
+                    habits: updatedHabits 
+                });
+                addNotification(`Category "${categoryName}" deleted`, 'info');
+                return true;
+            };
+
+            const editHabit = (habitId, updatedData) => {
+                const updatedHabits = habits.map(habit => {
+                    if (habit.id === habitId) {
+                        return { ...habit, ...updatedData };
+                    }
+                    return habit;
+                });
+                setHabits(updatedHabits);
+                saveToFirebase({ habits: updatedHabits });
+                setEditingHabit(null);
+                addNotification('Habit updated successfully', 'success');
+            };
+
+            const completeHabit = (habitId) => {
+                const updatedHabits = habits.map(habit => {
+                    if (habit.id === habitId) {
+                        const now = new Date();
+                        const lastCompleted = habit.lastCompleted ? new Date(habit.lastCompleted) : null;
+                        const isConsecutiveDay = lastCompleted && 
+                            (now.toDateString() !== lastCompleted.toDateString()) &&
+                            (now - lastCompleted < 48 * 60 * 60 * 1000);
+                        
+                        let pointsEarned = difficultyPoints[habit.difficulty] * (habit.type === 'positive' ? 1 : -1);
+                        
+                        // Calculate bonus points if completed before deadline
+                        let bonusPoints = 0;
+                        if (habit.deadline && habit.type === 'positive') {
+                            const deadline = new Date(habit.deadline);
+                            const daysLeft = Math.ceil((deadline - now) / (24 * 60 * 60 * 1000));
+                            if (daysLeft > 0) {
+                                bonusPoints = daysLeft;
+                                pointsEarned += bonusPoints;
+                            }
+                        }
+                        
+                        const newPoints = points + pointsEarned;
+                        setPoints(newPoints);
+                        
+                        let notificationMsg = `${habit.type === 'positive' ? '+' : ''}${pointsEarned} points for ${habit.name}!`;
+                        if (bonusPoints > 0) {
+                            notificationMsg += ` (${bonusPoints} bonus pts for early completion!)`;
+                        }
+                        
+                        addNotification(
+                            notificationMsg,
+                            habit.type === 'positive' ? 'success' : 'error'
+                        );
+
+                        const updatedHabit = {
+                            ...habit,
+                            streak: isConsecutiveDay ? habit.streak + 1 : 1,
+                            lastCompleted: now.toISOString(),
+                            completions: [...habit.completions, now.toISOString()],
+                            totalCompletions: habit.totalCompletions + 1
+                        };
+
+                        saveToFirebase({ 
+                            habits: habits.map(h => h.id === habitId ? updatedHabit : h),
+                            points: newPoints 
+                        });
+
+                        return updatedHabit;
+                    }
+                    return habit;
+                });
+                setHabits(updatedHabits);
+            };
+
+            const notCompleteHabit = (habitId) => {
+                const habit = habits.find(h => h.id === habitId);
+                if (!habit) return;
+
+                // Deduct points based on difficulty (reverse of complete)
+                const pointsDeducted = difficultyPoints[habit.difficulty] * (habit.type === 'positive' ? -1 : 1);
+                const newPoints = points + pointsDeducted;
+                setPoints(newPoints);
+                
+                addNotification(
+                    `${pointsDeducted} points for not completing ${habit.name}`,
+                    'error'
+                );
+
+                // Reset streak to 0 for recurring habits
+                if (habit.recurring !== false) {
+                    const updatedHabits = habits.map(h => {
+                        if (h.id === habitId) {
+                            return {
+                                ...h,
+                                streak: 0
+                            };
+                        }
+                        return h;
+                    });
+                    setHabits(updatedHabits);
+                    saveToFirebase({ 
+                        habits: updatedHabits,
+                        points: newPoints 
+                    });
+                }
+            };
+
+            const deleteHabit = (habitId) => {
+                const habitToDelete = habits.find(h => h.id === habitId);
+                if (habitToDelete) {
+                    const deletedItem = {
+                        ...habitToDelete,
+                        deletedAt: Date.now()
+                    };
+                    const updatedDeleted = [...deletedHabits, deletedItem];
+                    setDeletedHabits(updatedDeleted);
+                    
+                    const updatedHabits = habits.filter(h => h.id !== habitId);
+                    setHabits(updatedHabits);
+                    
+                    saveToFirebase({ 
+                        habits: updatedHabits,
+                        deletedHabits: updatedDeleted 
+                    });
+                }
+                addNotification('Habit moved to trash', 'info');
+            };
+
+            const restoreHabit = (habitId) => {
+                const habitToRestore = deletedHabits.find(h => h.id === habitId);
+                if (habitToRestore) {
+                    const { deletedAt, ...habitData } = habitToRestore;
+                    const updatedHabits = [...habits, habitData];
+                    setHabits(updatedHabits);
+                    
+                    const updatedDeleted = deletedHabits.filter(h => h.id !== habitId);
+                    setDeletedHabits(updatedDeleted);
+                    
+                    saveToFirebase({ 
+                        habits: updatedHabits,
+                        deletedHabits: updatedDeleted 
+                    });
+                    
+                    addNotification('Habit restored successfully', 'success');
+                }
+            };
+
+            const permanentlyDelete = (habitId) => {
+                const updatedDeleted = deletedHabits.filter(h => h.id !== habitId);
+                setDeletedHabits(updatedDeleted);
+                saveToFirebase({ deletedHabits: updatedDeleted });
+                addNotification('Habit permanently deleted', 'info');
+            };
+
+            const addNotification = (message, type) => {
+                const notification = { id: Date.now(), message, type };
+                setNotifications(prev => [...prev, notification]);
+                setTimeout(() => {
+                    setNotifications(prev => prev.filter(n => n.id !== notification.id));
+                }, 3000);
+            };
+
+            const convertPoints = (type, amount) => {
+                const pointsNeeded = type === 'money' 
+                    ? amount / conversionRate.money 
+                    : amount / conversionRate.time;
+                
+                if (points >= pointsNeeded) {
+                    const newPoints = points - pointsNeeded;
+                    setPoints(newPoints);
+                    saveToFirebase({ points: newPoints });
+                    addNotification(
+                        `Converted ${pointsNeeded.toFixed(1)} points to ${type === 'money' ? '$' + amount : amount + ' minutes'}!`,
+                        'success'
+                    );
+                    return true;
+                }
+                addNotification('Not enough points!', 'error');
+                return false;
+            };
+
+            const handleSignOut = async () => {
+                const { signOut } = window.firebaseModules;
+                try {
+                    await signOut(auth);
+                    addNotification('Signed out successfully', 'success');
+                } catch (error) {
+                    addNotification('Error signing out', 'error');
+                }
+            };
+
+            // Show login screen if not authenticated
+            if (loading) {
+                return (
+                    <div className="min-h-screen flex items-center justify-center">
+                        <div className="glass rounded-2xl p-8">
+                            <div className="text-white text-xl">Loading...</div>
+                        </div>
+                    </div>
+                );
+            }
+
+            if (!user) {
+                return <AuthScreen />;
+            }
+
+            return (
+                <div className="min-h-screen p-4 md:p-8">
+                    {/* Sync Indicator */}
+                    {syncing && (
+                        <div className="fixed top-4 left-4 z-50 glass rounded-lg px-4 py-2 flex items-center gap-2">
+                            <div className="sync-indicator text-white">☁️</div>
+                            <span className="text-white text-sm">Syncing...</span>
+                        </div>
+                    )}
+
+                    {/* Notifications */}
+                    <div className="fixed top-4 right-4 z-50 space-y-2">
+                        {notifications.map(notif => (
+                            <div key={notif.id} className={`glass rounded-lg px-4 py-3 shadow-lg animate-slide-in ${
+                                notif.type === 'success' ? 'bg-green-500/30' :
+                                notif.type === 'error' ? 'bg-red-500/30' :
+                                notif.type === 'warning' ? 'bg-yellow-500/30' : 'bg-blue-500/30'
+                            }`}>
+                                <p className="text-white font-medium">{notif.message}</p>
+                            </div>
+                        ))}
+                    </div>
+
+                    <div className="max-w-6xl mx-auto">
+                        {/* Header with Points Wallet */}
+                        <div className="glass rounded-2xl p-4 md:p-6 mb-4 md:mb-6 shadow-xl">
+                            <div className="flex flex-col md:flex-row justify-between items-center gap-4">
+                                <div className="text-center md:text-left">
+                                    <h1 className="text-3xl md:text-4xl font-bold text-white mb-2">🔥 Locked In App</h1>
+                                    <p className="text-purple-200 text-sm md:text-base">Transform habits into rewards</p>
+                                    <p className="text-purple-300 text-xs md:text-sm mt-1">☁️ Synced • {user.email.split('@')[0]}</p>
+                                </div>
+                                <div className="text-center">
+                                    <div className="text-5xl md:text-6xl font-bold text-white mb-1">
+                                        {points.toFixed(1)}
+                                    </div>
+                                    <div className="text-purple-200 text-xs md:text-sm">
+                                        = ${(points * conversionRate.money).toFixed(2)} or {formatTime(points * conversionRate.time)}
+                                    </div>
+                                    <button
+                                        onClick={handleSignOut}
+                                        className="mt-2 text-purple-200 hover:text-white text-xs md:text-sm underline"
+                                    >
+                                        Sign Out
+                                    </button>
+                                </div>
+                            </div>
+                        </div>
+
+                        {/* Tabs */}
+                        <div className="flex gap-2 mb-4 md:mb-6 overflow-x-auto pb-2" style={{scrollbarWidth: 'none', msOverflowStyle: 'none'}}>
+                            <style>{'::-webkit-scrollbar { display: none; }'}</style>
+                            <button
+                                onClick={() => setActiveTab('today')}
+                                className={`px-4 md:px-6 py-2 md:py-3 rounded-lg font-semibold transition whitespace-nowrap ${
+                                    activeTab === 'today' 
+                                        ? 'bg-white text-purple-600' 
+                                        : 'glass text-white hover:bg-white/20'
+                                }`}
+                            >
+                                📅 Today
+                            </button>
+                            <button
+                                onClick={() => setActiveTab('habits')}
+                                className={`px-4 md:px-6 py-2 md:py-3 rounded-lg font-semibold transition whitespace-nowrap ${
+                                    activeTab === 'habits' 
+                                        ? 'bg-white text-purple-600' 
+                                        : 'glass text-white hover:bg-white/20'
+                                }`}
+                            >
+                                My Habits
+                            </button>
+                            <button
+                                onClick={() => setActiveTab('wallet')}
+                                className={`px-4 md:px-6 py-2 md:py-3 rounded-lg font-semibold transition whitespace-nowrap ${
+                                    activeTab === 'wallet' 
+                                        ? 'bg-white text-purple-600' 
+                                        : 'glass text-white hover:bg-white/20'
+                                }`}
+                            >
+                                Wallet
+                            </button>
+                            <button
+                                onClick={() => setActiveTab('trash')}
+                                className={`px-4 md:px-6 py-2 md:py-3 rounded-lg font-semibold transition whitespace-nowrap ${
+                                    activeTab === 'trash' 
+                                        ? 'bg-white text-purple-600' 
+                                        : 'glass text-white hover:bg-white/20'
+                                }`}
+                            >
+                                🗑️ Trash {deletedHabits.length > 0 && `(${deletedHabits.length})`}
+                            </button>
+                            <button
+                                onClick={() => setActiveTab('settings')}
+                                className={`px-4 md:px-6 py-2 md:py-3 rounded-lg font-semibold transition whitespace-nowrap ${
+                                    activeTab === 'settings' 
+                                        ? 'bg-white text-purple-600' 
+                                        : 'glass text-white hover:bg-white/20'
+                                }`}
+                            >
+                                Settings
+                            </button>
+                        </div>
+
+                        {/* Today Tab */}
+                        {activeTab === 'today' && (
+                            <TodayTab 
+                                habits={habits}
+                                onComplete={completeHabit}
+                                onNotComplete={notCompleteHabit}
+                                onDelete={deleteHabit}
+                                onEdit={setEditingHabit}
+                                difficultyPoints={difficultyPoints}
+                                formatTime={formatTime}
+                            />
+                        )}
+
+                        {/* Habits Tab */}
+                        {activeTab === 'habits' && (
+                            <div>
+                                {/* Category Filter */}
+                                <div className="glass rounded-lg p-4 mb-4">
+                                    <label className="block text-white font-semibold mb-2 text-sm md:text-base">Filter by Category</label>
+                                    <div className="flex gap-2 overflow-x-auto pb-2" style={{scrollbarWidth: 'none', msOverflowStyle: 'none'}}>
+                                        <button
+                                            onClick={() => setSelectedCategory('all')}
+                                            className={`px-4 py-2 rounded-lg font-semibold transition whitespace-nowrap text-sm md:text-base ${
+                                                selectedCategory === 'all'
+                                                    ? 'bg-white text-purple-600'
+                                                    : 'bg-white/20 text-white hover:bg-white/30'
+                                            }`}
+                                        >
+                                            All
+                                        </button>
+                                        {categories.map(cat => (
+                                            <button
+                                                key={cat}
+                                                onClick={() => setSelectedCategory(cat)}
+                                                className={`px-4 py-2 rounded-lg font-semibold transition whitespace-nowrap text-sm md:text-base ${
+                                                    selectedCategory === cat
+                                                        ? 'bg-white text-purple-600'
+                                                        : 'bg-white/20 text-white hover:bg-white/30'
+                                                }`}
+                                            >
+                                                {cat}
+                                            </button>
+                                        ))}
+                                    </div>
+                                </div>
+
+                                <button
+                                    onClick={() => setShowAddHabit(!showAddHabit)}
+                                    className="w-full glass rounded-lg p-4 text-white font-semibold hover:bg-white/20 transition mb-4"
+                                >
+                                    + Add New Habit
+                                </button>
+
+                                {showAddHabit && (
+                                    <AddHabitForm 
+                                        onAdd={addHabit} 
+                                        onCancel={() => setShowAddHabit(false)}
+                                        categories={categories}
+                                    />
+                                )}
+
+                                {editingHabit && (
+                                    <EditHabitForm 
+                                        habit={editingHabit}
+                                        onEdit={editHabit} 
+                                        onCancel={() => setEditingHabit(null)}
+                                        categories={categories}
+                                    />
+                                )}
+
+                                <div className="grid gap-4">
+                                    {(() => {
+                                        const filteredHabits = selectedCategory === 'all' 
+                                            ? habits 
+                                            : habits.filter(h => h.category === selectedCategory);
+                                        
+                                        const sortedHabits = [...filteredHabits].sort((a, b) => {
+                                            const pointsA = difficultyPoints[a.difficulty];
+                                            const pointsB = difficultyPoints[b.difficulty];
+                                            return pointsB - pointsA;
+                                        });
+
+                                        if (sortedHabits.length === 0) {
+                                            return (
+                                                <div className="glass rounded-lg p-8 text-center text-white">
+                                                    <p className="text-xl mb-2">
+                                                        {selectedCategory === 'all' ? 'No habits yet!' : `No habits in ${selectedCategory}`}
+                                                    </p>
+                                                    <p className="text-purple-200">
+                                                        {selectedCategory === 'all' ? 'Add your first habit to get started' : 'Add a habit to this category'}
+                                                    </p>
+                                                </div>
+                                            );
+                                        }
+
+                                        return sortedHabits.map(habit => (
+                                            <HabitCard
+                                                key={habit.id}
+                                                habit={habit}
+                                                onComplete={completeHabit}
+                                                onNotComplete={notCompleteHabit}
+                                                onDelete={deleteHabit}
+                                                onEdit={setEditingHabit}
+                                                difficultyPoints={difficultyPoints}
+                                            />
+                                        ));
+                                    })()}
+                                </div>
+                            </div>
+                        )}
+
+                        {/* Wallet Tab */}
+                        {activeTab === 'wallet' && (
+                            <WalletTab 
+                                points={points} 
+                                conversionRate={conversionRate}
+                                onConvert={convertPoints}
+                            />
+                        )}
+
+                        {/* Trash Tab */}
+                        {activeTab === 'trash' && (
+                            <TrashTab 
+                                deletedHabits={deletedHabits}
+                                onRestore={restoreHabit}
+                                onPermanentDelete={permanentlyDelete}
+                            />
+                        )}
+
+                        {/* Settings Tab */}
+                        {activeTab === 'settings' && (
+                            <SettingsTab 
+                                conversionRate={conversionRate}
+                                setConversionRate={(rate) => {
+                                    setConversionRate(rate);
+                                    saveToFirebase({ conversionRate: rate });
+                                }}
+                                categories={categories}
+                                onAddCategory={addCategory}
+                                onDeleteCategory={deleteCategory}
+                            />
+                        )}
+                    </div>
+                </div>
+            );
+        };
+
+        // Authentication Screen Component
+        const AuthScreen = () => {
+            const [isLogin, setIsLogin] = useState(true);
+            const [email, setEmail] = useState('');
+            const [password, setPassword] = useState('');
+            const [error, setError] = useState('');
+            const [loading, setLoading] = useState(false);
+
+            const handleAuth = async (e) => {
+                e.preventDefault();
+                setError('');
+                setLoading(true);
+
+                const { signInWithEmailAndPassword, createUserWithEmailAndPassword } = window.firebaseModules;
+                const { getAuth } = window.firebaseModules;
+                const auth = getAuth();
+
+                try {
+                    if (isLogin) {
+                        await signInWithEmailAndPassword(auth, email, password);
+                    } else {
+                        await createUserWithEmailAndPassword(auth, email, password);
+                    }
+                } catch (err) {
+                    setError(err.message);
+                }
+                setLoading(false);
+            };
+
+            return (
+                <div className="min-h-screen flex items-center justify-center p-4">
+                    <div className="glass rounded-2xl p-8 max-w-md w-full">
+                        <h1 className="text-4xl font-bold text-white mb-2 text-center">🔥 Locked In App</h1>
+                        <p className="text-purple-200 text-center mb-8">☁️ Synced across all your devices</p>
+                        
+                        <form onSubmit={handleAuth} className="space-y-4">
+                            <div>
+                                <label className="block text-white font-semibold mb-2">Email</label>
+                                <input
+                                    type="email"
+                                    value={email}
+                                    onChange={(e) => setEmail(e.target.value)}
+                                    className="w-full px-4 py-3 rounded-lg bg-white/20 text-white placeholder-purple-200 border border-white/30 focus:outline-none focus:border-white"
+                                    placeholder="your@email.com"
+                                    required
+                                />
+                            </div>
+
+                            <div>
+                                <label className="block text-white font-semibold mb-2">Password</label>
+                                <input
+                                    type="password"
+                                    value={password}
+                                    onChange={(e) => setPassword(e.target.value)}
+                                    className="w-full px-4 py-3 rounded-lg bg-white/20 text-white placeholder-purple-200 border border-white/30 focus:outline-none focus:border-white"
+                                    placeholder="••••••••"
+                                    required
+                                    minLength="6"
+                                />
+                            </div>
+
+                            {error && (
+                                <div className="bg-red-500/30 border border-red-400/30 rounded-lg p-3">
+                                    <p className="text-red-200 text-sm">{error}</p>
+                                </div>
+                            )}
+
+                            <button
+                                type="submit"
+                                disabled={loading}
+                                className="w-full bg-white text-purple-600 py-3 rounded-lg font-semibold hover:bg-purple-50 transition disabled:opacity-50"
+                            >
+                                {loading ? 'Please wait...' : (isLogin ? 'Sign In' : 'Create Account')}
+                            </button>
+                        </form>
+
+                        <div className="mt-6 text-center">
+                            <button
+                                onClick={() => setIsLogin(!isLogin)}
+                                className="text-purple-200 hover:text-white underline"
+                            >
+                                {isLogin ? "Don't have an account? Sign up" : 'Already have an account? Sign in'}
+                            </button>
+                        </div>
+                    </div>
+                </div>
+            );
+        };
+
+        const AddHabitForm = ({ onAdd, onCancel, categories }) => {
+            const [formData, setFormData] = useState({
+                name: '',
+                type: 'positive',
+                difficulty: 'medium',
+                category: 'Personal',
+                duration: 0,
+                deadline: '',
+                reminderTime: ''
+            });
+
+            const handleAddClick = () => {
+                if (formData.name.trim()) {
+                    onAdd(formData);
+                    setFormData({ name: '', type: 'positive', difficulty: 'medium', category: 'Personal', duration: 0, deadline: '', reminderTime: '' });
+                }
+            };
+
+            return (
+                <div className="glass rounded-lg p-6 mb-4">
+                    <div className="space-y-4">
+                        <div>
+                            <label className="block text-white font-semibold mb-2">Habit Name</label>
+                            <input
+                                type="text"
+                                value={formData.name}
+                                onChange={(e) => setFormData({...formData, name: e.target.value})}
+                                className="w-full px-4 py-2 rounded-lg bg-white/20 text-white placeholder-purple-200 border border-white/30 focus:outline-none focus:border-white"
+                                placeholder="e.g., Morning workout"
+                            />
+                        </div>
+
+                        <div className="grid grid-cols-2 gap-4">
+                            <div>
+                                <label className="block text-white font-semibold mb-2">Type</label>
+                                <select
+                                    value={formData.type}
+                                    onChange={(e) => setFormData({...formData, type: e.target.value})}
+                                    className="w-full px-4 py-2 rounded-lg bg-white/20 text-white border border-white/30 focus:outline-none focus:border-white"
+                                >
+                                    <option value="positive" className="bg-purple-600">✅ Positive</option>
+                                    <option value="negative" className="bg-purple-600">❌ Negative</option>
+                                </select>
+                            </div>
+
+                            <div>
+                                <label className="block text-white font-semibold mb-2">Difficulty</label>
+                                <select
+                                    value={formData.difficulty}
+                                    onChange={(e) => setFormData({...formData, difficulty: e.target.value})}
+                                    className="w-full px-4 py-2 rounded-lg bg-white/20 text-white border border-white/30 focus:outline-none focus:border-white"
+                                >
+                                    <option value="easy" className="bg-purple-600">Easy (1pt)</option>
+                                    <option value="medium" className="bg-purple-600">Medium (3pts)</option>
+                                    <option value="hard" className="bg-purple-600">Hard (5pts)</option>
+                                    <option value="extreme" className="bg-purple-600">Extreme (10pts)</option>
+                                </select>
+                            </div>
+                        </div>
+
+                        <div className="grid grid-cols-2 gap-4">
+                            <div>
+                                <label className="block text-white font-semibold mb-2">Category</label>
+                                <select
+                                    value={formData.category}
+                                    onChange={(e) => setFormData({...formData, category: e.target.value})}
+                                    className="w-full px-4 py-2 rounded-lg bg-white/20 text-white border border-white/30 focus:outline-none focus:border-white"
+                                >
+                                    {categories.map(cat => (
+                                        <option key={cat} value={cat} className="bg-purple-600">{cat}</option>
+                                    ))}
+                                </select>
+                            </div>
+
+                            <div>
+                                <label className="block text-white font-semibold mb-2">Duration (minutes)</label>
+                                <input
+                                    type="number"
+                                    value={formData.duration}
+                                    onChange={(e) => setFormData({...formData, duration: parseInt(e.target.value) || 0})}
+                                    className="w-full px-4 py-2 rounded-lg bg-white/20 text-white border border-white/30 focus:outline-none focus:border-white"
+                                    placeholder="0"
+                                    min="0"
+                                />
+                            </div>
+                        </div>
+
+                        <div className="grid grid-cols-2 gap-4">
+                            <div>
+                                <label className="block text-white font-semibold mb-2">Deadline (Optional)</label>
+                                <input
+                                    type="date"
+                                    value={formData.deadline}
+                                    onChange={(e) => setFormData({...formData, deadline: e.target.value})}
+                                    className="w-full px-4 py-2 rounded-lg bg-white/20 text-white border border-white/30 focus:outline-none focus:border-white"
+                                />
+                            </div>
+
+                            <div>
+                                <label className="block text-white font-semibold mb-2">Reminder Time (Optional)</label>
+                                <input
+                                    type="time"
+                                    value={formData.reminderTime}
+                                    onChange={(e) => setFormData({...formData, reminderTime: e.target.value})}
+                                    className="w-full px-4 py-2 rounded-lg bg-white/20 text-white border border-white/30 focus:outline-none focus:border-white"
+                                />
+                            </div>
+                        </div>
+
+                        {formData.deadline && formData.type === 'positive' && (
+                            <div className="bg-green-500/20 border border-green-400/30 rounded-lg p-3">
+                                <p className="text-green-200 text-sm">
+                                    💡 Bonus: Complete before deadline to earn +1 point per day left!
+                                </p>
+                            </div>
+                        )}
+
+                        <div className="flex gap-2">
+                            <button
+                                onClick={handleAddClick}
+                                className="flex-1 bg-white text-purple-600 py-2 rounded-lg font-semibold hover:bg-purple-50 transition"
+                            >
+                                Add Habit
+                            </button>
+                            <button
+                                onClick={onCancel}
+                                className="flex-1 bg-white/20 text-white py-2 rounded-lg font-semibold hover:bg-white/30 transition"
+                            >
+                                Cancel
+                            </button>
+                        </div>
+                    </div>
+                </div>
+            );
+        };
+
+        const EditHabitForm = ({ habit, onEdit, onCancel, categories }) => {
+            const [formData, setFormData] = useState({
+                name: habit.name,
+                type: habit.type,
+                difficulty: habit.difficulty,
+                category: habit.category || 'Personal',
+                duration: habit.duration || 0,
+                deadline: habit.deadline || '',
+                reminderTime: habit.reminderTime || ''
+            });
+
+            const handleSaveClick = () => {
+                if (formData.name.trim()) {
+                    onEdit(habit.id, formData);
+                }
+            };
+
+            return (
+                <div className="glass rounded-lg p-6 mb-4 border-2 border-blue-400">
+                    <h3 className="text-white font-bold mb-4">Edit Habit</h3>
+                    <div className="space-y-4">
+                        <div>
+                            <label className="block text-white font-semibold mb-2">Habit Name</label>
+                            <input
+                                type="text"
+                                value={formData.name}
+                                onChange={(e) => setFormData({...formData, name: e.target.value})}
+                                className="w-full px-4 py-2 rounded-lg bg-white/20 text-white placeholder-purple-200 border border-white/30 focus:outline-none focus:border-white"
+                                placeholder="e.g., Morning workout"
+                            />
+                        </div>
+
+                        <div className="grid grid-cols-2 gap-4">
+                            <div>
+                                <label className="block text-white font-semibold mb-2">Type</label>
+                                <select
+                                    value={formData.type}
+                                    onChange={(e) => setFormData({...formData, type: e.target.value})}
+                                    className="w-full px-4 py-2 rounded-lg bg-white/20 text-white border border-white/30 focus:outline-none focus:border-white"
+                                >
+                                    <option value="positive" className="bg-purple-600">✅ Positive</option>
+                                    <option value="negative" className="bg-purple-600">❌ Negative</option>
+                                </select>
+                            </div>
+
+                            <div>
+                                <label className="block text-white font-semibold mb-2">Difficulty</label>
+                                <select
+                                    value={formData.difficulty}
+                                    onChange={(e) => setFormData({...formData, difficulty: e.target.value})}
+                                    className="w-full px-4 py-2 rounded-lg bg-white/20 text-white border border-white/30 focus:outline-none focus:border-white"
+                                >
+                                    <option value="easy" className="bg-purple-600">Easy (1pt)</option>
+                                    <option value="medium" className="bg-purple-600">Medium (3pts)</option>
+                                    <option value="hard" className="bg-purple-600">Hard (5pts)</option>
+                                    <option value="extreme" className="bg-purple-600">Extreme (10pts)</option>
+                                </select>
+                            </div>
+                        </div>
+
+                        <div className="grid grid-cols-2 gap-4">
+                            <div>
+                                <label className="block text-white font-semibold mb-2">Category</label>
+                                <select
+                                    value={formData.category}
+                                    onChange={(e) => setFormData({...formData, category: e.target.value})}
+                                    className="w-full px-4 py-2 rounded-lg bg-white/20 text-white border border-white/30 focus:outline-none focus:border-white"
+                                >
+                                    {categories.map(cat => (
+                                        <option key={cat} value={cat} className="bg-purple-600">{cat}</option>
+                                    ))}
+                                </select>
+                            </div>
+
+                            <div>
+                                <label className="block text-white font-semibold mb-2">Duration (minutes)</label>
+                                <input
+                                    type="number"
+                                    value={formData.duration}
+                                    onChange={(e) => setFormData({...formData, duration: parseInt(e.target.value) || 0})}
+                                    className="w-full px-4 py-2 rounded-lg bg-white/20 text-white border border-white/30 focus:outline-none focus:border-white"
+                                    placeholder="0"
+                                    min="0"
+                                />
+                            </div>
+                        </div>
+
+                        <div className="grid grid-cols-2 gap-4">
+                            <div>
+                                <label className="block text-white font-semibold mb-2">Deadline (Optional)</label>
+                                <input
+                                    type="date"
+                                    value={formData.deadline}
+                                    onChange={(e) => setFormData({...formData, deadline: e.target.value})}
+                                    className="w-full px-4 py-2 rounded-lg bg-white/20 text-white border border-white/30 focus:outline-none focus:border-white"
+                                />
+                            </div>
+
+                            <div>
+                                <label className="block text-white font-semibold mb-2">Reminder Time (Optional)</label>
+                                <input
+                                    type="time"
+                                    value={formData.reminderTime}
+                                    onChange={(e) => setFormData({...formData, reminderTime: e.target.value})}
+                                    className="w-full px-4 py-2 rounded-lg bg-white/20 text-white border border-white/30 focus:outline-none focus:border-white"
+                                />
+                            </div>
+                        </div>
+
+                        {formData.deadline && formData.type === 'positive' && (
+                            <div className="bg-green-500/20 border border-green-400/30 rounded-lg p-3">
+                                <p className="text-green-200 text-sm">
+                                    💡 Bonus: Complete before deadline to earn +1 point per day left!
+                                </p>
+                            </div>
+                        )}
+
+                        <div className="flex gap-2">
+                            <button
+                                onClick={handleSaveClick}
+                                className="flex-1 bg-blue-500 text-white py-2 rounded-lg font-semibold hover:bg-blue-600 transition"
+                            >
+                                Save Changes
+                            </button>
+                            <button
+                                onClick={onCancel}
+                                className="flex-1 bg-white/20 text-white py-2 rounded-lg font-semibold hover:bg-white/30 transition"
+                            >
+                                Cancel
+                            </button>
+                        </div>
+                    </div>
+                </div>
+            );
+        };
+
+        const HabitCard = ({ habit, onComplete, onNotComplete, onDelete, onEdit, difficultyPoints }) => {
+            const pointValue = difficultyPoints[habit.difficulty];
+            const isPositive = habit.type === 'positive';
+            
+            const getDaysUntilDeadline = (deadline) => {
+                if (!deadline) return null;
+                const now = new Date();
+                const deadlineDate = new Date(deadline);
+                const diffTime = deadlineDate - now;
+                const diffDays = Math.ceil(diffTime / (1000 * 60 * 60 * 24));
+                return diffDays;
+            };
+
+            const getDeadlineStatus = (deadline) => {
+                const days = getDaysUntilDeadline(deadline);
+                if (days === null) return null;
+                if (days < 0) return { text: 'Overdue', color: 'red', days };
+                if (days === 0) return { text: 'Due today!', color: 'orange', days };
+                if (days === 1) return { text: '1 day left', color: 'yellow', days };
+                return { text: `${days} days left`, color: 'green', days };
+            };
+
+            const deadlineStatus = habit.deadline ? getDeadlineStatus(habit.deadline) : null;
+
+            return (
+                <div className={`glass rounded-lg p-4 border-l-4 ${
+                    isPositive ? 'border-green-400' : 'border-red-400'
+                }`}>
+                    <div className="flex justify-between items-start mb-3">
+                        <div className="flex-1">
+                            <h3 className="text-xl font-bold text-white mb-1">{habit.name}</h3>
+                            <div className="flex gap-2 flex-wrap">
+                                <span className={`px-2 py-1 rounded text-xs font-semibold ${
+                                    isPositive ? 'bg-green-500/30 text-green-100' : 'bg-red-500/30 text-red-100'
+                                }`}>
+                                    {habit.type}
+                                </span>
+                                <span className="px-2 py-1 rounded text-xs font-semibold bg-purple-500/30 text-purple-100">
+                                    {habit.difficulty} ({isPositive ? '+' : '-'}{pointValue}pts)
+                                </span>
+                                {habit.category && (
+                                    <span className="px-2 py-1 rounded text-xs font-semibold bg-blue-500/30 text-blue-100">
+                                        📁 {habit.category}
+                                    </span>
+                                )}
+                                {habit.duration > 0 && (
+                                    <span className="px-2 py-1 rounded text-xs font-semibold bg-cyan-500/30 text-cyan-100">
+                                        ⏱️ {habit.duration} min
+                                    </span>
+                                )}
+                                {deadlineStatus && (
+                                    <span className={`px-2 py-1 rounded text-xs font-semibold ${
+                                        deadlineStatus.color === 'red' ? 'bg-red-500/30 text-red-100' :
+                                        deadlineStatus.color === 'orange' ? 'bg-orange-500/30 text-orange-100' :
+                                        deadlineStatus.color === 'yellow' ? 'bg-yellow-500/30 text-yellow-100' :
+                                        'bg-green-500/30 text-green-100'
+                                    }`}>
+                                        📅 {deadlineStatus.text}
+                                        {isPositive && deadlineStatus.days > 0 && ` (+${deadlineStatus.days} bonus)`}
+                                    </span>
+                                )}
+                                {habit.streak > 0 && (
+                                    <span className="px-2 py-1 rounded text-xs font-semibold bg-orange-500/30 text-orange-100 flex items-center gap-1">
+                                        <span className="streak-flame">🔥</span> {habit.streak} day streak
+                                    </span>
+                                )}
+                            </div>
+                        </div>
+                        <div className="flex gap-2">
+                            <button
+                                onClick={() => onEdit(habit)}
+                                className="text-white/60 hover:text-blue-300 transition"
+                                title="Edit habit"
+                            >
+                                ✏️
+                            </button>
+                            <button
+                                onClick={() => onDelete(habit.id)}
+                                className="text-white/60 hover:text-white transition"
+                                title="Delete habit"
+                            >
+                                ✕
+                            </button>
+                        </div>
+                    </div>
+
+                    <div className="flex flex-col sm:flex-row justify-between items-start sm:items-center gap-3">
+                        <div className="text-purple-200 text-sm w-full sm:w-auto">
+                            Total: {habit.totalCompletions} times
+                            {habit.lastCompleted && (
+                                <span className="ml-2">
+                                    • Last: {new Date(habit.lastCompleted).toLocaleDateString()}
+                                </span>
+                            )}
+                        </div>
+                        <div className="flex gap-2 w-full sm:w-auto">
+                            {onNotComplete && (
+                                <button
+                                    onClick={() => onNotComplete(habit.id)}
+                                    className="flex-1 sm:flex-none px-3 md:px-4 py-2 rounded-lg font-semibold transition bg-gray-500 hover:bg-gray-600 text-white text-sm md:text-base"
+                                    title="Not completed - deducts points and resets streak"
+                                >
+                                    Not Complete ✗
+                                </button>
+                            )}
+                            <button
+                                onClick={() => onComplete(habit.id)}
+                                className={`flex-1 sm:flex-none px-4 md:px-6 py-2 rounded-lg font-semibold transition text-sm md:text-base ${
+                                    isPositive 
+                                        ? 'bg-green-500 hover:bg-green-600 text-white' 
+                                        : 'bg-red-500 hover:bg-red-600 text-white'
+                                }`}
+                            >
+                                {isPositive ? 'Complete ✓' : 'Log ✓'}
+                            </button>
+                        </div>
+                    </div>
+                </div>
+            );
+        };
+
+        const TodayTab = ({ habits, onComplete, onNotComplete, onDelete, onEdit, difficultyPoints, formatTime }) => {
+            const today = new Date().toDateString();
+            
+            // Filter habits that have a deadline today or are overdue
+            const todayHabits = habits.filter(habit => {
+                if (!habit.deadline) return false;
+                const deadline = new Date(habit.deadline);
+                const daysUntil = Math.ceil((deadline - new Date()) / (1000 * 60 * 60 * 24));
+                return daysUntil <= 0; // Due today or overdue
+            });
+
+            // Calculate total time needed for today's tasks
+            const totalTime = todayHabits.reduce((sum, habit) => sum + (habit.duration || 0), 0);
+
+            return (
+                <div className="space-y-6">
+                    <div className="glass rounded-lg p-6">
+                        <div className="flex justify-between items-center mb-4">
+                            <div>
+                                <h2 className="text-2xl font-bold text-white mb-1">📅 Today's Tasks</h2>
+                                <p className="text-purple-200">{new Date().toLocaleDateString('en-US', { weekday: 'long', month: 'long', day: 'numeric', year: 'numeric' })}</p>
+                            </div>
+                            {totalTime > 0 && (
+                                <div className="text-right">
+                                    <div className="text-sm text-purple-200">Total Time</div>
+                                    <div className="text-2xl font-bold text-white">{formatTime(totalTime)}</div>
+                                </div>
+                            )}
+                        </div>
+
+                        {todayHabits.length === 0 ? (
+                            <div className="text-center py-12">
+                                <div className="text-6xl mb-4">🎉</div>
+                                <p className="text-white text-xl mb-2">No tasks due today!</p>
+                                <p className="text-purple-200">Enjoy your free time or add tasks with deadlines</p>
+                            </div>
+                        ) : (
+                            <div className="space-y-3">
+                                {todayHabits
+                                    .sort((a, b) => {
+                                        // Sort by points (highest first)
+                                        const pointsA = difficultyPoints[a.difficulty];
+                                        const pointsB = difficultyPoints[b.difficulty];
+                                        return pointsB - pointsA;
+                                    })
+                                    .map(habit => (
+                                        <HabitCard
+                                            key={habit.id}
+                                            habit={habit}
+                                            onComplete={onComplete}
+                                            onNotComplete={onNotComplete}
+                                            onDelete={onDelete}
+                                            onEdit={onEdit}
+                                            difficultyPoints={difficultyPoints}
+                                        />
+                                    ))
+                                }
+                            </div>
+                        )}
+                    </div>
+                </div>
+            );
+        };
+
+        const WalletTab = ({ points, conversionRate, onConvert }) => {
+            const [moneyAmount, setMoneyAmount] = useState(5);
+            const [timeAmount, setTimeAmount] = useState(60);
+
+            const formatTime = (minutes) => {
+                if (minutes < 60) {
+                    return `${minutes} min`;
+                }
+                
+                const days = Math.floor(minutes / (24 * 60));
+                const hours = Math.floor((minutes % (24 * 60)) / 60);
+                const mins = Math.floor(minutes % 60);
+                
+                const parts = [];
+                if (days > 0) parts.push(`${days} day${days !== 1 ? 's' : ''}`);
+                if (hours > 0) parts.push(`${hours} hr${hours !== 1 ? 's' : ''}`);
+                if (mins > 0) parts.push(`${mins} min`);
+                
+                return parts.join(' ');
+            };
+
+            return (
+                <div className="space-y-6">
+                    <div className="glass rounded-lg p-6">
+                        <h2 className="text-2xl font-bold text-white mb-4">Your Wallet</h2>
+                        <div className="text-center mb-6">
+                            <div className="text-6xl font-bold text-white mb-2">{points.toFixed(1)}</div>
+                            <div className="text-purple-200">Available Points</div>
+                        </div>
+
+                        <div className="grid md:grid-cols-2 gap-4">
+                            {/* Convert to Money */}
+                            <div className="bg-white/10 rounded-lg p-4">
+                                <h3 className="text-white font-semibold mb-3 flex items-center gap-2">
+                                    💰 Convert to Money
+                                </h3>
+                                <p className="text-purple-200 text-sm mb-3">
+                                    1 point = ${conversionRate.money}
+                                </p>
+                                <input
+                                    type="number"
+                                    value={moneyAmount}
+                                    onChange={(e) => setMoneyAmount(parseFloat(e.target.value) || 0)}
+                                    className="w-full px-4 py-2 rounded-lg bg-white/20 text-white mb-3 border border-white/30 focus:outline-none focus:border-white"
+                                    placeholder="Amount in $"
+                                    min="0"
+                                    step="1"
+                                />
+                                <div className="text-purple-200 text-sm mb-3">
+                                    Costs: {(moneyAmount / conversionRate.money).toFixed(1)} points
+                                </div>
+                                <button
+                                    onClick={() => onConvert('money', moneyAmount)}
+                                    disabled={points < (moneyAmount / conversionRate.money)}
+                                    className="w-full bg-green-500 text-white py-2 rounded-lg font-semibold hover:bg-green-600 disabled:bg-gray-500 disabled:cursor-not-allowed transition"
+                                >
+                                    Convert to ${moneyAmount}
+                                </button>
+                            </div>
+
+                            {/* Convert to Time */}
+                            <div className="bg-white/10 rounded-lg p-4">
+                                <h3 className="text-white font-semibold mb-3 flex items-center gap-2">
+                                    ⏰ Convert to Free Time
+                                </h3>
+                                <p className="text-purple-200 text-sm mb-3">
+                                    1 point = {conversionRate.time} minutes
+                                </p>
+                                <input
+                                    type="number"
+                                    value={timeAmount}
+                                    onChange={(e) => setTimeAmount(parseFloat(e.target.value) || 0)}
+                                    className="w-full px-4 py-2 rounded-lg bg-white/20 text-white mb-3 border border-white/30 focus:outline-none focus:border-white"
+                                    placeholder="Minutes"
+                                    min="0"
+                                    step="15"
+                                />
+                                <div className="text-purple-200 text-sm mb-3">
+                                    Costs: {(timeAmount / conversionRate.time).toFixed(1)} points • {formatTime(timeAmount)}
+                                </div>
+                                <button
+                                    onClick={() => onConvert('time', timeAmount)}
+                                    disabled={points < (timeAmount / conversionRate.time)}
+                                    className="w-full bg-blue-500 text-white py-2 rounded-lg font-semibold hover:bg-blue-600 disabled:bg-gray-500 disabled:cursor-not-allowed transition"
+                                >
+                                    Convert to {formatTime(timeAmount)}
+                                </button>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+            );
+        };
+
+        const TrashTab = ({ deletedHabits, onRestore, onPermanentDelete }) => {
+            const getDaysUntilDeletion = (deletedAt) => {
+                const now = Date.now();
+                const sevenDays = 7 * 24 * 60 * 60 * 1000;
+                const timeLeft = sevenDays - (now - deletedAt);
+                return Math.ceil(timeLeft / (24 * 60 * 60 * 1000));
+            };
+
+            return (
+                <div className="space-y-6">
+                    <div className="glass rounded-lg p-6">
+                        <h2 className="text-2xl font-bold text-white mb-2">🗑️ Trash</h2>
+                        <p className="text-purple-200 mb-4">Deleted habits will be permanently removed after 7 days</p>
+
+                        {deletedHabits.length === 0 ? (
+                            <div className="text-center py-8">
+                                <p className="text-white text-lg mb-2">Trash is empty</p>
+                                <p className="text-purple-200">Deleted habits will appear here</p>
+                            </div>
+                        ) : (
+                            <div className="space-y-3">
+                                {deletedHabits.map(habit => {
+                                    const daysLeft = getDaysUntilDeletion(habit.deletedAt);
+                                    const isPositive = habit.type === 'positive';
+                                    
+                                    return (
+                                        <div key={habit.id} className={`bg-white/10 rounded-lg p-4 border-l-4 ${
+                                            isPositive ? 'border-green-400/50' : 'border-red-400/50'
+                                        }`}>
+                                            <div className="flex justify-between items-start mb-2">
+                                                <div className="flex-1">
+                                                    <h3 className="text-lg font-bold text-white mb-1">{habit.name}</h3>
+                                                    <div className="flex gap-2 flex-wrap">
+                                                        <span className={`px-2 py-1 rounded text-xs font-semibold ${
+                                                            isPositive ? 'bg-green-500/20 text-green-200' : 'bg-red-500/20 text-red-200'
+                                                        }`}>
+                                                            {habit.type}
+                                                        </span>
+                                                        <span className="px-2 py-1 rounded text-xs font-semibold bg-purple-500/20 text-purple-200">
+                                                            {habit.difficulty}
+                                                        </span>
+                                                        <span className="px-2 py-1 rounded text-xs font-semibold bg-yellow-500/20 text-yellow-200">
+                                                            ⏰ Deletes in {daysLeft} day{daysLeft !== 1 ? 's' : ''}
+                                                        </span>
+                                                    </div>
+                                                </div>
+                                            </div>
+                                            
+                                            <div className="text-purple-200 text-sm mb-3">
+                                                Total completions: {habit.totalCompletions} times
+                                                {habit.streak > 0 && ` • Streak: ${habit.streak} days`}
+                                            </div>
+
+                                            <div className="flex gap-2">
+                                                <button
+                                                    onClick={() => onRestore(habit.id)}
+                                                    className="flex-1 bg-green-500 hover:bg-green-600 text-white py-2 rounded-lg font-semibold transition"
+                                                >
+                                                    ↺ Restore
+                                                </button>
+                                                <button
+                                                    onClick={() => {
+                                                        if (confirm('Permanently delete this habit? This cannot be undone.')) {
+                                                            onPermanentDelete(habit.id);
+                                                        }
+                                                    }}
+                                                    className="flex-1 bg-red-500 hover:bg-red-600 text-white py-2 rounded-lg font-semibold transition"
+                                                >
+                                                    Delete Forever
+                                                </button>
+                                            </div>
+                                        </div>
+                                    );
+                                })}
+                            </div>
+                        )}
+                    </div>
+                </div>
+            );
+        };
+
+        const SettingsTab = ({ conversionRate, setConversionRate, categories, onAddCategory, onDeleteCategory }) => {
+            const [localRate, setLocalRate] = useState(conversionRate);
+            const [newCategory, setNewCategory] = useState('');
+
+            const handleSave = () => {
+                setConversionRate(localRate);
+            };
+
+            const handleAddCategory = () => {
+                if (onAddCategory(newCategory)) {
+                    setNewCategory('');
+                }
+            };
+
+            return (
+                <div className="glass rounded-lg p-6">
+                    <h2 className="text-2xl font-bold text-white mb-6">Settings</h2>
+                    
+                    <div className="space-y-6">
+                        <div>
+                            <label className="block text-white font-semibold mb-2">
+                                Money Conversion Rate
+                            </label>
+                            <p className="text-purple-200 text-sm mb-2">1 point = $ ?</p>
+                            <input
+                                type="number"
+                                value={localRate.money}
+                                onChange={(e) => setLocalRate({...localRate, money: parseFloat(e.target.value) || 1})}
+                                className="w-full px-4 py-2 rounded-lg bg-white/20 text-white border border-white/30 focus:outline-none focus:border-white"
+                                min="0.01"
+                                step="0.01"
+                            />
+                        </div>
+
+                        <div>
+                            <label className="block text-white font-semibold mb-2">
+                                Time Conversion Rate
+                            </label>
+                            <p className="text-purple-200 text-sm mb-2">1 point = ? minutes</p>
+                            <input
+                                type="number"
+                                value={localRate.time}
+                                onChange={(e) => setLocalRate({...localRate, time: parseFloat(e.target.value) || 10})}
+                                className="w-full px-4 py-2 rounded-lg bg-white/20 text-white border border-white/30 focus:outline-none focus:border-white"
+                                min="1"
+                                step="1"
+                            />
+                        </div>
+
+                        <button
+                            onClick={handleSave}
+                            className="w-full bg-white text-purple-600 py-3 rounded-lg font-semibold hover:bg-purple-50 transition"
+                        >
+                            Save Conversion Settings
+                        </button>
+
+                        <div className="bg-white/10 rounded-lg p-4">
+                            <h3 className="text-white font-semibold mb-3">Manage Categories</h3>
+                            
+                            <div className="mb-4">
+                                <div className="flex gap-2">
+                                    <input
+                                        type="text"
+                                        value={newCategory}
+                                        onChange={(e) => setNewCategory(e.target.value)}
+                                        onKeyPress={(e) => e.key === 'Enter' && handleAddCategory()}
+                                        className="flex-1 px-4 py-2 rounded-lg bg-white/20 text-white placeholder-purple-200 border border-white/30 focus:outline-none focus:border-white"
+                                        placeholder="New category name"
+                                    />
+                                    <button
+                                        onClick={handleAddCategory}
+                                        className="px-6 py-2 bg-green-500 hover:bg-green-600 text-white rounded-lg font-semibold transition"
+                                    >
+                                        Add
+                                    </button>
+                                </div>
+                            </div>
+
+                            <div className="space-y-2">
+                                {categories.map(cat => (
+                                    <div key={cat} className="flex justify-between items-center bg-white/5 rounded-lg px-4 py-2">
+                                        <span className="text-white">{cat}</span>
+                                        <button
+                                            onClick={() => onDeleteCategory(cat)}
+                                            className="text-red-300 hover:text-red-100 transition"
+                                            title="Delete category"
+                                        >
+                                            ✕
+                                        </button>
+                                    </div>
+                                ))}
+                            </div>
+                            
+                            <p className="text-purple-200 text-sm mt-3">
+                                Note: Deleting a category moves its habits to the first available category.
+                            </p>
+                        </div>
+
+                        <div className="bg-white/10 rounded-lg p-4">
+                            <h3 className="text-white font-semibold mb-2">About</h3>
+                            <p className="text-purple-200 text-sm">
+                                ☁️ Locked In App - Your habit tracker with cloud sync! All your data is securely stored in Firebase and syncs instantly across all your devices.
+                            </p>
+                        </div>
+                    </div>
+                </div>
+            );
+        };
+
+        // Render the app
+        ReactDOM.render(<HabitTrackerApp />, document.getElementById('root'));
+    </script>
+</body>
+</html>
