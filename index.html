@@ -1,0 +1,2648 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=5.0, user-scalable=yes">
+    <meta name="apple-mobile-web-app-capable" content="yes">
+    <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
+    <meta name="theme-color" content="#4c1d95">
+    <title>Locked In App</title>
+    
+    <!-- Favicon -->
+    <link rel="icon" href="data:image/svg+xml,<svg xmlns=%22http://www.w3.org/2000/svg%22 viewBox=%220 0 100 100%22><text y=%22.9em%22 font-size=%2290%22>🔥</text></svg>">
+    <link rel="apple-touch-icon" href="data:image/svg+xml,<svg xmlns=%22http://www.w3.org/2000/svg%22 viewBox=%220 0 100 100%22><text y=%22.9em%22 font-size=%2290%22>🔥</text></svg>">
+    
+    <!-- React -->
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/react/18.2.0/umd/react.production.min.js"></script>
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/react-dom/18.2.0/umd/react-dom.production.min.js"></script>
+    <script src="https://cdn.jsdelivr.net/npm/@babel/standalone/babel.min.js"></script>
+    
+    <!-- Tailwind -->
+    <script src="https://cdn.tailwindcss.com"></script>
+    
+    <!-- Firebase v9 (modular) -->
+    <script type="module">
+        import { initializeApp } from 'https://www.gstatic.com/firebasejs/10.7.1/firebase-app.js';
+        import { getAuth, createUserWithEmailAndPassword, signInWithEmailAndPassword, onAuthStateChanged, signOut } from 'https://www.gstatic.com/firebasejs/10.7.1/firebase-auth.js';
+        import { getFirestore, doc, setDoc, getDoc, onSnapshot, collection, updateDoc, deleteField } from 'https://www.gstatic.com/firebasejs/10.7.1/firebase-firestore.js';
+        
+        // Make Firebase available globally
+        window.firebaseModules = {
+            initializeApp,
+            getAuth,
+            createUserWithEmailAndPassword,
+            signInWithEmailAndPassword,
+            onAuthStateChanged,
+            signOut,
+            getFirestore,
+            doc,
+            setDoc,
+            getDoc,
+            onSnapshot,
+            collection,
+            updateDoc,
+            deleteField
+        };
+    </script>
+    
+    <style>
+        * {
+            -webkit-tap-highlight-color: transparent;
+            -webkit-touch-callout: none;
+        }
+        
+        body {
+            margin: 0;
+            font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', 'Roboto', 'Oxygen', 'Ubuntu', 'Cantarell', sans-serif;
+            background: linear-gradient(135deg, #1e1b4b 0%, #312e81 50%, #1e1b4b 100%);
+            min-height: 100vh;
+            overscroll-behavior: none;
+        }
+        
+        .glass {
+            background: rgba(30, 27, 75, 0.6);
+            backdrop-filter: blur(10px);
+            -webkit-backdrop-filter: blur(10px);
+            border: 1px solid rgba(139, 92, 246, 0.3);
+        }
+        
+        .streak-flame {
+            animation: flicker 1.5s infinite;
+        }
+        
+        @keyframes flicker {
+            0%, 100% { opacity: 1; }
+            50% { opacity: 0.8; }
+        }
+        
+        .sync-indicator {
+            animation: pulse 2s infinite;
+        }
+        
+        @keyframes pulse {
+            0%, 100% { opacity: 1; }
+            50% { opacity: 0.5; }
+        }
+        
+        /* Mobile-specific improvements */
+        @media (max-width: 768px) {
+            body {
+                font-size: 16px; /* Prevents iOS zoom on input focus */
+            }
+            
+            input, select, textarea, button {
+                font-size: 16px !important; /* Prevents iOS zoom */
+            }
+            
+            .glass {
+                backdrop-filter: blur(8px);
+                -webkit-backdrop-filter: blur(8px);
+            }
+            
+            /* Larger touch targets for mobile */
+            button {
+                min-height: 44px;
+                min-width: 44px;
+            }
+            
+            /* Better spacing on mobile */
+            .mobile-compact {
+                padding: 0.75rem !important;
+            }
+            
+            /* Prevent text overflow on mobile */
+            .mobile-text-wrap {
+                word-wrap: break-word;
+                overflow-wrap: break-word;
+                word-break: break-word;
+            }
+            
+            /* Smaller text on mobile for cards */
+            .mobile-card-text {
+                font-size: 0.875rem !important;
+            }
+            
+            .mobile-card-title {
+                font-size: 1.125rem !important;
+            }
+        }
+        
+        /* iOS-specific fixes */
+        @supports (-webkit-touch-callout: none) {
+            body {
+                min-height: -webkit-fill-available;
+            }
+            
+            input, textarea, select {
+                -webkit-appearance: none;
+                border-radius: 0.5rem;
+            }
+        }
+        
+        /* Smooth scrolling */
+        * {
+            -webkit-overflow-scrolling: touch;
+        }
+        
+        /* Better button feedback on mobile */
+        button:active {
+            transform: scale(0.98);
+            transition: transform 0.1s;
+        }
+        
+        /* Prevent text selection on buttons */
+        button {
+            -webkit-user-select: none;
+            user-select: none;
+        }
+    </style>
+</head>
+<body>
+    <div id="root"></div>
+
+    <script type="text/babel">
+        const { useState, useEffect } = React;
+
+        // ==============================================
+        // FIREBASE CONFIGURATION
+        // ==============================================
+        const firebaseConfig = {
+            apiKey: "AIzaSyCwt-i1K7BhUIWDD5Mv2P3rJ1oaCAtR1EM",
+            authDomain: "locked-in-app-2b4a9.firebaseapp.com",
+            projectId: "locked-in-app-2b4a9",
+            storageBucket: "locked-in-app-2b4a9.firebasestorage.app",
+            messagingSenderId: "679543957870",
+            appId: "1:679543957870:web:d011a3f9a0aa159f4db97f"
+        };
+        // ==============================================
+
+        // Initialize Firebase (will happen after modules load)
+        let app, auth, db;
+        
+        const HabitTrackerApp = () => {
+            const [user, setUser] = useState(null);
+            const [loading, setLoading] = useState(true);
+            const [syncing, setSyncing] = useState(false);
+            const [habits, setHabits] = useState([]);
+            const [points, setPoints] = useState(0);
+            const [showAddHabit, setShowAddHabit] = useState(false);
+            const [conversionRate, setConversionRate] = useState({ money: 1, time: 10 });
+            const [activeTab, setActiveTab] = useState('today');
+            const [notifications, setNotifications] = useState([]);
+            const [deletedHabits, setDeletedHabits] = useState([]);
+            const [editingHabit, setEditingHabit] = useState(null);
+            const [categories, setCategories] = useState(['School', 'Home', 'Work', 'Personal']);
+            const [selectedCategory, setSelectedCategory] = useState('all');
+            const [completionHistory, setCompletionHistory] = useState([]);
+            const [conversionHistory, setConversionHistory] = useState([]);
+
+            // Initialize Firebase when modules are ready
+            useEffect(() => {
+                const initFirebase = () => {
+                    if (window.firebaseModules) {
+                        const { initializeApp, getAuth, getFirestore } = window.firebaseModules;
+                        app = initializeApp(firebaseConfig);
+                        auth = getAuth(app);
+                        db = getFirestore(app);
+                        
+                        // Listen for auth changes
+                        const { onAuthStateChanged } = window.firebaseModules;
+                        onAuthStateChanged(auth, (user) => {
+                            setUser(user);
+                            setLoading(false);
+                        });
+                    } else {
+                        setTimeout(initFirebase, 100);
+                    }
+                };
+                initFirebase();
+            }, []);
+
+            // Check negative habits for automatic rewards
+            useEffect(() => {
+                if (!user || habits.length === 0) return;
+
+                const checkNegativeHabits = () => {
+                    const now = new Date();
+                    let habitsUpdated = false;
+                    let totalAutoPoints = 0;
+                    const autoRewardHabits = [];
+
+                    const updatedHabits = habits.map(habit => {
+                        if (habit.type === 'negative' && habit.negativeAvoidanceStart) {
+                            const avoidanceStart = new Date(habit.negativeAvoidanceStart);
+                            const daysAvoided = Math.floor((now - avoidanceStart) / (24 * 60 * 60 * 1000));
+                            const completedWeeks = Math.floor(daysAvoided / 7);
+
+                            // Check if we have completed weeks to reward
+                            if (completedWeeks > 0) {
+                                const basePoints = difficultyPoints[habit.difficulty];
+                                const earnedPoints = completedWeeks * basePoints;
+                                
+                                totalAutoPoints += earnedPoints;
+                                autoRewardHabits.push({ name: habit.name, points: earnedPoints, weeks: completedWeeks });
+                                habitsUpdated = true;
+
+                                // Reset the avoidance start to now (to start counting next 7 days)
+                                return {
+                                    ...habit,
+                                    negativeAvoidanceStart: now.toISOString()
+                                };
+                            }
+                        }
+                        return habit;
+                    });
+
+                    if (habitsUpdated) {
+                        setHabits(updatedHabits);
+                        const newPoints = points + totalAutoPoints;
+                        setPoints(newPoints);
+                        saveToFirebase({ 
+                            habits: updatedHabits,
+                            points: newPoints 
+                        });
+
+                        // Show notification for auto-rewards
+                        autoRewardHabits.forEach(({ name, points, weeks }) => {
+                            addNotification(
+                                `🎉 Auto-reward: +${points} points for avoiding ${name} for ${weeks} week${weeks > 1 ? 's' : ''}!`,
+                                'success'
+                            );
+                        });
+                    }
+                };
+
+                // Check immediately on load
+                checkNegativeHabits();
+
+                // Check every hour
+                const interval = setInterval(checkNegativeHabits, 60 * 60 * 1000);
+                return () => clearInterval(interval);
+            }, [user, habits]);
+
+            // Check for overdue habits and deduct points
+            useEffect(() => {
+                if (!user || habits.length === 0) return;
+
+                const checkOverdueHabits = () => {
+                    const now = new Date();
+                    now.setHours(0, 0, 0, 0); // Start of today
+                    let habitsUpdated = false;
+                    let totalPenaltyPoints = 0;
+                    const penaltyHabits = [];
+
+                    const updatedHabits = habits.map(habit => {
+                        if (habit.deadline && habit.type === 'positive') {
+                            const deadline = new Date(habit.deadline);
+                            deadline.setHours(23, 59, 59, 999); // End of deadline day
+                            
+                            // Check if overdue
+                            if (now > deadline) {
+                                const lastPenaltyCheck = habit.lastOverduePenalty ? new Date(habit.lastOverduePenalty) : deadline;
+                                lastPenaltyCheck.setHours(0, 0, 0, 0);
+                                
+                                // Calculate days overdue since last penalty
+                                const daysSinceLastPenalty = Math.floor((now - lastPenaltyCheck) / (24 * 60 * 60 * 1000));
+                                
+                                if (daysSinceLastPenalty > 0) {
+                                    const basePoints = difficultyPoints[habit.difficulty];
+                                    const penaltyPoints = daysSinceLastPenalty * basePoints;
+                                    
+                                    totalPenaltyPoints += penaltyPoints;
+                                    penaltyHabits.push({ 
+                                        name: habit.name, 
+                                        points: penaltyPoints, 
+                                        days: daysSinceLastPenalty 
+                                    });
+                                    habitsUpdated = true;
+
+                                    return {
+                                        ...habit,
+                                        lastOverduePenalty: now.toISOString()
+                                    };
+                                }
+                            }
+                        }
+                        return habit;
+                    });
+
+                    if (habitsUpdated) {
+                        setHabits(updatedHabits);
+                        const newPoints = points - totalPenaltyPoints; // Allow negative points
+                        setPoints(newPoints);
+                        saveToFirebase({ 
+                            habits: updatedHabits,
+                            points: newPoints 
+                        });
+
+                        // Show notification for penalties
+                        penaltyHabits.forEach(({ name, points, days }) => {
+                            addNotification(
+                                `⚠️ Overdue penalty: -${points} points for ${name} (${days} day${days > 1 ? 's' : ''} overdue)`,
+                                'error'
+                            );
+                        });
+                    }
+                };
+
+                // Check immediately on load
+                checkOverdueHabits();
+
+                // Check every hour
+                const interval = setInterval(checkOverdueHabits, 60 * 60 * 1000);
+                return () => clearInterval(interval);
+            }, [user, habits, points]);
+
+            // Sync data with Firebase when user is logged in
+            useEffect(() => {
+                if (!user || !db) return;
+
+                const { onSnapshot, doc } = window.firebaseModules;
+                
+                // Subscribe to user's data
+                const unsubscribe = onSnapshot(doc(db, 'users', user.uid), (docSnap) => {
+                    if (docSnap.exists()) {
+                        const data = docSnap.data();
+                        setHabits(data.habits || []);
+                        setPoints(data.points || 0);
+                        setConversionRate(data.conversionRate || { money: 1, time: 10 });
+                        setDeletedHabits(data.deletedHabits || []);
+                        setCategories(data.categories || ['School', 'Home', 'Work', 'Personal']);
+                        setCompletionHistory(data.completionHistory || []);
+                        setConversionHistory(data.conversionHistory || []);
+                    }
+                    setSyncing(false);
+                });
+
+                return () => unsubscribe();
+            }, [user]);
+
+            // Save data to Firebase
+            const saveToFirebase = async (dataToSave) => {
+                if (!user || !db) {
+                    console.error('Cannot save: user or db not initialized');
+                    addNotification('Not logged in - cannot sync', 'error');
+                    return;
+                }
+                
+                setSyncing(true);
+                const { setDoc, doc } = window.firebaseModules;
+                
+                try {
+                    // Clean the data before saving to avoid Firebase errors
+                    const cleanData = JSON.parse(JSON.stringify(dataToSave));
+                    await setDoc(doc(db, 'users', user.uid), cleanData, { merge: true });
+                    setSyncing(false);
+                } catch (error) {
+                    console.error('Error saving to Firebase:', error);
+                    addNotification(`Failed to sync: ${error.message}`, 'error');
+                    setSyncing(false);
+                }
+            };
+
+            const difficultyPoints = {
+                easy: 1,
+                medium: 3,
+                hard: 5,
+                extreme: 10
+            };
+
+            const formatTime = (minutes) => {
+                if (minutes < 60) {
+                    return `${minutes} min`;
+                }
+                
+                const days = Math.floor(minutes / (24 * 60));
+                const hours = Math.floor((minutes % (24 * 60)) / 60);
+                const mins = Math.floor(minutes % 60);
+                
+                const parts = [];
+                if (days > 0) parts.push(`${days} day${days !== 1 ? 's' : ''}`);
+                if (hours > 0) parts.push(`${hours} hr${hours !== 1 ? 's' : ''}`);
+                if (mins > 0) parts.push(`${mins} min`);
+                
+                return parts.join(' ');
+            };
+
+            const getDaysUntilDeadline = (deadline) => {
+                if (!deadline) return null;
+                const now = new Date();
+                const deadlineDate = new Date(deadline);
+                const diffTime = deadlineDate - now;
+                const diffDays = Math.ceil(diffTime / (1000 * 60 * 60 * 24));
+                return diffDays;
+            };
+
+            const getDeadlineStatus = (deadline) => {
+                const days = getDaysUntilDeadline(deadline);
+                if (days === null) return null;
+                if (days < 0) return { text: 'Overdue', color: 'red', days };
+                if (days === 0) return { text: 'Due today!', color: 'orange', days };
+                if (days === 1) return { text: '1 day left', color: 'yellow', days };
+                return { text: `${days} days left`, color: 'green', days };
+            };
+
+            const addHabit = (habitData) => {
+                const now = new Date().toISOString();
+                const newHabit = {
+                    id: Date.now(),
+                    ...habitData,
+                    category: habitData.category || 'Personal',
+                    duration: habitData.duration || 0,
+                    deadline: habitData.deadline || null,
+                    recurring: habitData.recurring !== undefined ? habitData.recurring : true,
+                    streak: 0,
+                    lastCompleted: null,
+                    completions: [],
+                    totalCompletions: 0,
+                    // For negative habits: track when they started avoiding
+                    lastNegativeLog: habitData.type === 'negative' ? now : null,
+                    negativeAvoidanceStart: habitData.type === 'negative' ? now : null,
+                    // For overdue tracking
+                    lastOverduePenalty: null
+                };
+                const updatedHabits = [...habits, newHabit];
+                setHabits(updatedHabits);
+                saveToFirebase({ habits: updatedHabits });
+                setShowAddHabit(false);
+                addNotification(`Added new ${habitData.type} habit: ${habitData.name}`, habitData.type === 'positive' ? 'success' : 'warning');
+            };
+
+            const addCategory = (categoryName) => {
+                if (categoryName.trim() && !categories.includes(categoryName.trim())) {
+                    const updatedCategories = [...categories, categoryName.trim()];
+                    setCategories(updatedCategories);
+                    saveToFirebase({ categories: updatedCategories });
+                    addNotification(`Category "${categoryName}" added`, 'success');
+                    return true;
+                }
+                return false;
+            };
+
+            const deleteCategory = (categoryName) => {
+                if (categories.length <= 1) {
+                    addNotification('You must have at least one category', 'error');
+                    return false;
+                }
+                const updatedCategories = categories.filter(cat => cat !== categoryName);
+                setCategories(updatedCategories);
+                
+                const updatedHabits = habits.map(habit => {
+                    if (habit.category === categoryName) {
+                        return { ...habit, category: updatedCategories[0] };
+                    }
+                    return habit;
+                });
+                setHabits(updatedHabits);
+                saveToFirebase({ 
+                    categories: updatedCategories,
+                    habits: updatedHabits 
+                });
+                addNotification(`Category "${categoryName}" deleted`, 'info');
+                return true;
+            };
+
+            const editHabit = (habitId, updatedData) => {
+                const updatedHabits = habits.map(habit => {
+                    if (habit.id === habitId) {
+                        const now = new Date().toISOString();
+                        // If changing from positive to negative, initialize tracking
+                        if (habit.type !== 'negative' && updatedData.type === 'negative') {
+                            return { 
+                                ...habit, 
+                                ...updatedData,
+                                lastNegativeLog: now,
+                                negativeAvoidanceStart: now
+                            };
+                        }
+                        // If changing from negative to positive, remove tracking
+                        if (habit.type === 'negative' && updatedData.type === 'positive') {
+                            const { lastNegativeLog, negativeAvoidanceStart, ...cleanHabit } = { ...habit, ...updatedData };
+                            return cleanHabit;
+                        }
+                        return { ...habit, ...updatedData };
+                    }
+                    return habit;
+                });
+                setHabits(updatedHabits);
+                saveToFirebase({ habits: updatedHabits });
+                setEditingHabit(null);
+                addNotification('Habit updated successfully', 'success');
+            };
+
+            const completeHabit = (habitId) => {
+                const habit = habits.find(h => h.id === habitId);
+                if (!habit) return;
+
+                const now = new Date();
+                const lastCompleted = habit.lastCompleted ? new Date(habit.lastCompleted) : null;
+                const isConsecutiveDay = lastCompleted && 
+                    (now.toDateString() !== lastCompleted.toDateString()) &&
+                    (now - lastCompleted < 48 * 60 * 60 * 1000);
+                
+                let pointsEarned = 0;
+                let notificationMsg = '';
+
+                if (habit.type === 'positive') {
+                    // Positive habit logic
+                    pointsEarned = difficultyPoints[habit.difficulty];
+                    
+                    // Calculate bonus points if completed before deadline
+                    let bonusPoints = 0;
+                    if (habit.deadline) {
+                        const deadline = new Date(habit.deadline);
+                        const daysLeft = Math.ceil((deadline - now) / (24 * 60 * 60 * 1000));
+                        if (daysLeft > 0) {
+                            bonusPoints = daysLeft;
+                            pointsEarned += bonusPoints;
+                        }
+                    }
+                    
+                    notificationMsg = `+${pointsEarned} points for ${habit.name}!`;
+                    if (bonusPoints > 0) {
+                        notificationMsg += ` (${bonusPoints} bonus pts for early completion!)`;
+                    }
+                } else {
+                    // Negative habit logic - calculate rewards for avoided days
+                    const avoidanceStart = habit.negativeAvoidanceStart ? new Date(habit.negativeAvoidanceStart) : now;
+                    const daysAvoided = Math.floor((now - avoidanceStart) / (24 * 60 * 60 * 1000));
+                    const completedWeeks = Math.floor(daysAvoided / 7);
+                    const basePoints = difficultyPoints[habit.difficulty];
+                    
+                    // Award points for completed weeks
+                    const earnedPoints = completedWeeks * basePoints;
+                    pointsEarned = earnedPoints;
+                    
+                    // Deduct points for logging the negative habit
+                    pointsEarned -= basePoints;
+                    
+                    if (earnedPoints > 0) {
+                        notificationMsg = `You avoided ${habit.name} for ${daysAvoided} days! +${earnedPoints} points earned, -${basePoints} for logging it. Net: ${pointsEarned >= 0 ? '+' : ''}${pointsEarned} points`;
+                    } else {
+                        notificationMsg = `-${basePoints} points for ${habit.name}`;
+                    }
+                }
+                
+                const newPoints = points + pointsEarned;
+                setPoints(newPoints);
+                
+                addNotification(
+                    notificationMsg,
+                    habit.type === 'positive' ? 'success' : 'error'
+                );
+
+                // Add to completion history
+                const historyEntry = {
+                    id: Date.now(),
+                    habitId: habit.id,
+                    habitName: habit.name,
+                    habitType: habit.type,
+                    category: habit.category,
+                    difficulty: habit.difficulty,
+                    pointsEarned: pointsEarned,
+                    completedAt: now.toISOString(),
+                    duration: habit.duration || 0,
+                    // Store all habit properties for potential undo
+                    deadline: habit.deadline || null,
+                    recurring: habit.recurring !== undefined ? habit.recurring : true,
+                    reminderTime: habit.reminderTime || null,
+                    streak: habit.streak || 0,
+                    lastCompleted: habit.lastCompleted || null,
+                    completions: habit.completions || [],
+                    totalCompletions: habit.totalCompletions || 0,
+                    lastNegativeLog: habit.lastNegativeLog || null,
+                    negativeAvoidanceStart: habit.negativeAvoidanceStart || null,
+                    lastOverduePenalty: habit.lastOverduePenalty || null
+                };
+                const updatedHistory = [historyEntry, ...completionHistory];
+                setCompletionHistory(updatedHistory);
+
+                // Check if non-recurring task - if so, delete it after completion
+                if (habit.recurring === false) {
+                    const updatedHabits = habits.filter(h => h.id !== habitId);
+                    setHabits(updatedHabits);
+                    saveToFirebase({ 
+                        habits: updatedHabits,
+                        points: newPoints,
+                        completionHistory: updatedHistory
+                    });
+                    addNotification(`${habit.name} completed and removed (non-recurring task)`, 'info');
+                } else {
+                    // Update existing habit - create updated habit object first
+                    const updatedHabit = {
+                        ...habit,
+                        streak: isConsecutiveDay ? habit.streak + 1 : 1,
+                        lastCompleted: now.toISOString(),
+                        completions: [...(habit.completions || []), now.toISOString()],
+                        totalCompletions: (habit.totalCompletions || 0) + 1,
+                        // Reset negative habit tracking
+                        lastNegativeLog: habit.type === 'negative' ? now.toISOString() : habit.lastNegativeLog,
+                        negativeAvoidanceStart: habit.type === 'negative' ? now.toISOString() : habit.negativeAvoidanceStart,
+                        // Clear overdue penalty tracking when completed
+                        lastOverduePenalty: habit.type === 'positive' ? null : habit.lastOverduePenalty
+                    };
+
+                    const updatedHabits = habits.map(h => h.id === habitId ? updatedHabit : h);
+                    setHabits(updatedHabits);
+                    saveToFirebase({ 
+                        habits: updatedHabits,
+                        points: newPoints,
+                        completionHistory: updatedHistory
+                    });
+                }
+            };
+
+            const notCompleteHabit = (habitId) => {
+                const habit = habits.find(h => h.id === habitId);
+                if (!habit) return;
+
+                // Deduct points based on difficulty (reverse of complete)
+                const pointsDeducted = difficultyPoints[habit.difficulty] * (habit.type === 'positive' ? -1 : 1);
+                const newPoints = points + pointsDeducted;
+                setPoints(newPoints);
+                
+                addNotification(
+                    `${pointsDeducted} points for not completing ${habit.name}`,
+                    'error'
+                );
+
+                // Reset streak to 0 for recurring habits
+                if (habit.recurring !== false) {
+                    const updatedHabits = habits.map(h => {
+                        if (h.id === habitId) {
+                            return {
+                                ...h,
+                                streak: 0
+                            };
+                        }
+                        return h;
+                    });
+                    setHabits(updatedHabits);
+                    saveToFirebase({ 
+                        habits: updatedHabits,
+                        points: newPoints 
+                    });
+                } else {
+                    // For non-recurring habits, just save points
+                    saveToFirebase({ points: newPoints });
+                }
+            };
+
+            const deleteHabit = (habitId) => {
+                const habitToDelete = habits.find(h => h.id === habitId);
+                if (habitToDelete) {
+                    const deletedItem = {
+                        ...habitToDelete,
+                        deletedAt: Date.now()
+                    };
+                    const updatedDeleted = [...deletedHabits, deletedItem];
+                    setDeletedHabits(updatedDeleted);
+                    
+                    const updatedHabits = habits.filter(h => h.id !== habitId);
+                    setHabits(updatedHabits);
+                    
+                    saveToFirebase({ 
+                        habits: updatedHabits,
+                        deletedHabits: updatedDeleted 
+                    });
+                }
+                addNotification('Habit moved to trash', 'info');
+            };
+
+            const restoreHabit = (habitId) => {
+                const habitToRestore = deletedHabits.find(h => h.id === habitId);
+                if (habitToRestore) {
+                    const { deletedAt, ...habitData } = habitToRestore;
+                    const updatedHabits = [...habits, habitData];
+                    setHabits(updatedHabits);
+                    
+                    const updatedDeleted = deletedHabits.filter(h => h.id !== habitId);
+                    setDeletedHabits(updatedDeleted);
+                    
+                    saveToFirebase({ 
+                        habits: updatedHabits,
+                        deletedHabits: updatedDeleted 
+                    });
+                    
+                    addNotification('Habit restored successfully', 'success');
+                }
+            };
+
+            const permanentlyDelete = (habitId) => {
+                const updatedDeleted = deletedHabits.filter(h => h.id !== habitId);
+                setDeletedHabits(updatedDeleted);
+                saveToFirebase({ deletedHabits: updatedDeleted });
+                addNotification('Habit permanently deleted', 'info');
+            };
+
+            const addNotification = (message, type) => {
+                const notification = { id: Date.now(), message, type };
+                setNotifications(prev => [...prev, notification]);
+                setTimeout(() => {
+                    setNotifications(prev => prev.filter(n => n.id !== notification.id));
+                }, 3000);
+            };
+
+            const undoCompletion = (historyEntry) => {
+                // Reverse the points
+                const newPoints = points - historyEntry.pointsEarned;
+                setPoints(newPoints);
+
+                // Remove from history
+                const updatedHistory = completionHistory.filter(h => h.id !== historyEntry.id);
+                setCompletionHistory(updatedHistory);
+
+                // Check if the habit still exists
+                const habitExists = habits.find(h => h.id === historyEntry.habitId);
+
+                if (habitExists) {
+                    // Update existing habit - restore to state before completion
+                    const updatedHabits = habits.map(h => {
+                        if (h.id === historyEntry.habitId) {
+                            return {
+                                ...h,
+                                totalCompletions: Math.max(0, (h.totalCompletions || 1) - 1),
+                                completions: (h.completions || []).filter(c => c !== historyEntry.completedAt),
+                                // Restore previous state from history
+                                streak: historyEntry.streak || 0,
+                                lastCompleted: historyEntry.lastCompleted || null,
+                                lastNegativeLog: historyEntry.lastNegativeLog || null,
+                                negativeAvoidanceStart: historyEntry.negativeAvoidanceStart || null,
+                                lastOverduePenalty: historyEntry.lastOverduePenalty || null
+                            };
+                        }
+                        return h;
+                    });
+                    setHabits(updatedHabits);
+                    saveToFirebase({
+                        habits: updatedHabits,
+                        points: newPoints,
+                        completionHistory: updatedHistory
+                    });
+                    addNotification(`Undone: ${historyEntry.habitName}. Points reversed: ${historyEntry.pointsEarned >= 0 ? '-' : '+'}${Math.abs(historyEntry.pointsEarned)}`, 'info');
+                } else {
+                    // Habit was deleted or was non-recurring - restore it with ALL original properties
+                    const now = new Date().toISOString();
+                    const restoredHabit = {
+                        id: historyEntry.habitId,
+                        name: historyEntry.habitName,
+                        type: historyEntry.habitType,
+                        difficulty: historyEntry.difficulty,
+                        category: historyEntry.category || 'Personal',
+                        duration: historyEntry.duration || 0,
+                        // Restore ALL original properties
+                        deadline: historyEntry.deadline || null,
+                        recurring: historyEntry.recurring !== undefined ? historyEntry.recurring : true,
+                        reminderTime: historyEntry.reminderTime || null,
+                        streak: historyEntry.streak || 0,
+                        lastCompleted: historyEntry.lastCompleted || null,
+                        completions: historyEntry.completions || [],
+                        totalCompletions: Math.max(0, (historyEntry.totalCompletions || 1) - 1),
+                        lastNegativeLog: historyEntry.lastNegativeLog || null,
+                        negativeAvoidanceStart: historyEntry.negativeAvoidanceStart || null,
+                        lastOverduePenalty: historyEntry.lastOverduePenalty || null
+                    };
+                    const updatedHabits = [...habits, restoredHabit];
+                    setHabits(updatedHabits);
+                    saveToFirebase({
+                        habits: updatedHabits,
+                        points: newPoints,
+                        completionHistory: updatedHistory
+                    });
+                    addNotification(`Undone & Restored: ${historyEntry.habitName} returned to ${historyEntry.category}${historyEntry.deadline ? ' with original deadline' : ''}. Points reversed: ${historyEntry.pointsEarned >= 0 ? '-' : '+'}${Math.abs(historyEntry.pointsEarned)}`, 'success');
+                }
+            };
+
+            const convertPoints = (type, amount, reason = '') => {
+                let pointsChange = 0;
+                let conversionType = '';
+                let conversionDescription = '';
+
+                switch(type) {
+                    case 'points-to-money':
+                        pointsChange = -(amount / conversionRate.money);
+                        conversionType = 'Points → Money';
+                        conversionDescription = `Converted ${Math.abs(pointsChange).toFixed(1)} points to $${amount}`;
+                        if (points < Math.abs(pointsChange)) {
+                            addNotification('Not enough points!', 'error');
+                            return false;
+                        }
+                        break;
+                    case 'points-to-time':
+                        pointsChange = -(amount / conversionRate.time);
+                        conversionType = 'Points → Time';
+                        conversionDescription = `Converted ${Math.abs(pointsChange).toFixed(1)} points to ${amount} minutes`;
+                        if (points < Math.abs(pointsChange)) {
+                            addNotification('Not enough points!', 'error');
+                            return false;
+                        }
+                        break;
+                    case 'money-to-points':
+                        pointsChange = amount * conversionRate.money;
+                        conversionType = 'Money → Points';
+                        conversionDescription = `Converted $${amount} to ${pointsChange.toFixed(1)} points`;
+                        break;
+                    case 'add-points':
+                        pointsChange = amount;
+                        conversionType = 'Manual Add';
+                        conversionDescription = `Added ${amount} points`;
+                        break;
+                    case 'subtract-points':
+                        pointsChange = -amount;
+                        conversionType = 'Manual Subtract';
+                        conversionDescription = `Subtracted ${amount} points`;
+                        break;
+                }
+
+                const newPoints = points + pointsChange;
+                setPoints(newPoints);
+
+                // Add to conversion history
+                const conversionEntry = {
+                    id: Date.now(),
+                    type: conversionType,
+                    description: conversionDescription,
+                    pointsChange: pointsChange,
+                    amount: amount,
+                    reason: reason || 'No reason provided',
+                    timestamp: new Date().toISOString(),
+                    pointsBefore: points,
+                    pointsAfter: newPoints
+                };
+                const updatedConversionHistory = [conversionEntry, ...conversionHistory];
+                setConversionHistory(updatedConversionHistory);
+
+                saveToFirebase({ 
+                    points: newPoints,
+                    conversionHistory: updatedConversionHistory
+                });
+
+                addNotification(
+                    conversionDescription + (reason ? ` - ${reason}` : ''),
+                    pointsChange >= 0 ? 'success' : 'info'
+                );
+                return true;
+            };
+
+            const handleSignOut = async () => {
+                const { signOut } = window.firebaseModules;
+                try {
+                    await signOut(auth);
+                    addNotification('Signed out successfully', 'success');
+                } catch (error) {
+                    addNotification('Error signing out', 'error');
+                }
+            };
+
+            // Show login screen if not authenticated
+            if (loading) {
+                return (
+                    <div className="min-h-screen flex items-center justify-center">
+                        <div className="glass rounded-2xl p-8">
+                            <div className="text-white text-xl">Loading...</div>
+                        </div>
+                    </div>
+                );
+            }
+
+            if (!user) {
+                return <AuthScreen />;
+            }
+
+            return (
+                <div className="min-h-screen p-4 md:p-8">
+                    {/* Sync Indicator */}
+                    {syncing && (
+                        <div className="fixed top-4 left-4 z-50 glass rounded-lg px-4 py-2 flex items-center gap-2">
+                            <div className="sync-indicator text-white">☁️</div>
+                            <span className="text-white text-sm">Syncing...</span>
+                        </div>
+                    )}
+
+                    {/* Notifications */}
+                    <div className="fixed top-4 right-4 z-50 space-y-2 max-w-sm">
+                        {notifications.map(notif => (
+                            <div key={notif.id} className={`glass rounded-lg px-4 py-3 shadow-lg animate-slide-in ${
+                                notif.type === 'success' ? 'bg-green-500/30' :
+                                notif.type === 'error' ? 'bg-red-500/30' :
+                                notif.type === 'warning' ? 'bg-yellow-500/30' : 'bg-blue-500/30'
+                            }`}>
+                                <p className="text-white font-medium text-sm break-words">{notif.message}</p>
+                            </div>
+                        ))}
+                    </div>
+
+                    <div className="max-w-6xl mx-auto">
+                        {/* Header with Points Wallet */}
+                        <div className="glass rounded-2xl p-4 md:p-6 mb-4 md:mb-6 shadow-xl">
+                            <div className="flex flex-col md:flex-row justify-between items-center gap-4">
+                                <div className="text-center md:text-left">
+                                    <h1 className="text-3xl md:text-4xl font-bold text-white mb-2">Locked In App</h1>
+                                    <p className="text-purple-300 text-sm md:text-base">Transform habits into rewards</p>
+                                    <p className="text-purple-400 text-xs md:text-sm mt-1">☁️ Synced • {user.email.split('@')[0]}</p>
+                                </div>
+                                <div className="text-center">
+                                    <div className="text-5xl md:text-6xl font-bold text-white mb-1">
+                                        {points.toFixed(1)}
+                                    </div>
+                                    <div className="text-purple-300 text-xs md:text-sm">
+                                        = ${(points * conversionRate.money).toFixed(2)} or {formatTime(points * conversionRate.time)}
+                                    </div>
+                                    <button
+                                        onClick={handleSignOut}
+                                        className="mt-2 text-purple-300 hover:text-white text-xs md:text-sm underline"
+                                    >
+                                        Sign Out
+                                    </button>
+                                </div>
+                            </div>
+                        </div>
+
+                        {/* Tabs */}
+                        <div className="overflow-x-auto pb-2 mb-4 md:mb-6" style={{scrollbarWidth: 'thin', msOverflowStyle: 'auto'}}>
+                            <style>{`
+                                .tab-scroll::-webkit-scrollbar {
+                                    height: 6px;
+                                }
+                                .tab-scroll::-webkit-scrollbar-track {
+                                    background: rgba(139, 92, 246, 0.1);
+                                    border-radius: 3px;
+                                }
+                                .tab-scroll::-webkit-scrollbar-thumb {
+                                    background: rgba(139, 92, 246, 0.3);
+                                    border-radius: 3px;
+                                }
+                                .tab-scroll::-webkit-scrollbar-thumb:hover {
+                                    background: rgba(139, 92, 246, 0.5);
+                                }
+                            `}</style>
+                            <div className="flex gap-2 tab-scroll" style={{minWidth: 'max-content'}}>
+                                <button
+                                    onClick={() => setActiveTab('today')}
+                                    className={`px-4 md:px-6 py-2 md:py-3 rounded-lg font-semibold transition whitespace-nowrap ${
+                                        activeTab === 'today' 
+                                            ? 'bg-purple-600 text-white' 
+                                            : 'glass text-white hover:bg-purple-600/50'
+                                    }`}
+                                >
+                                    🔥 Today
+                                </button>
+                                <button
+                                    onClick={() => setActiveTab('tomorrow')}
+                                    className={`px-4 md:px-6 py-2 md:py-3 rounded-lg font-semibold transition whitespace-nowrap ${
+                                        activeTab === 'tomorrow' 
+                                            ? 'bg-purple-600 text-white' 
+                                            : 'glass text-white hover:bg-purple-600/50'
+                                    }`}
+                                >
+                                    ☀️ Tomorrow
+                                </button>
+                                <button
+                                    onClick={() => setActiveTab('upnext')}
+                                    className={`px-4 md:px-6 py-2 md:py-3 rounded-lg font-semibold transition whitespace-nowrap ${
+                                        activeTab === 'upnext' 
+                                            ? 'bg-purple-600 text-white' 
+                                            : 'glass text-white hover:bg-purple-600/50'
+                                    }`}
+                                >
+                                    📅 Up Next
+                                </button>
+                                <button
+                                    onClick={() => setActiveTab('habits')}
+                                    className={`px-4 md:px-6 py-2 md:py-3 rounded-lg font-semibold transition whitespace-nowrap ${
+                                        activeTab === 'habits' 
+                                            ? 'bg-purple-600 text-white' 
+                                            : 'glass text-white hover:bg-purple-600/50'
+                                    }`}
+                                >
+                                    My Habits
+                                </button>
+                                <button
+                                    onClick={() => setActiveTab('history')}
+                                    className={`px-4 md:px-6 py-2 md:py-3 rounded-lg font-semibold transition whitespace-nowrap ${
+                                        activeTab === 'history' 
+                                            ? 'bg-purple-600 text-white' 
+                                            : 'glass text-white hover:bg-purple-600/50'
+                                    }`}
+                                >
+                                    📜 History
+                                </button>
+                                <button
+                                    onClick={() => setActiveTab('wallet')}
+                                    className={`px-4 md:px-6 py-2 md:py-3 rounded-lg font-semibold transition whitespace-nowrap ${
+                                        activeTab === 'wallet' 
+                                            ? 'bg-purple-600 text-white' 
+                                            : 'glass text-white hover:bg-purple-600/50'
+                                    }`}
+                                >
+                                    Wallet
+                                </button>
+                                <button
+                                    onClick={() => setActiveTab('trash')}
+                                    className={`px-4 md:px-6 py-2 md:py-3 rounded-lg font-semibold transition whitespace-nowrap ${
+                                        activeTab === 'trash' 
+                                            ? 'bg-purple-600 text-white' 
+                                            : 'glass text-white hover:bg-purple-600/50'
+                                    }`}
+                                >
+                                    🗑️ Trash {deletedHabits.length > 0 && `(${deletedHabits.length})`}
+                                </button>
+                                <button
+                                    onClick={() => setActiveTab('settings')}
+                                    className={`px-4 md:px-6 py-2 md:py-3 rounded-lg font-semibold transition whitespace-nowrap ${
+                                        activeTab === 'settings' 
+                                            ? 'bg-purple-600 text-white' 
+                                            : 'glass text-white hover:bg-purple-600/50'
+                                    }`}
+                                >
+                                    Settings
+                                </button>
+                            </div>
+                        </div>
+
+                        {/* Edit Habit Overlay - shows on any tab */}
+                        {editingHabit && (
+                            <div className="fixed inset-0 bg-black/50 backdrop-blur-sm z-50 flex items-center justify-center p-4" onClick={() => setEditingHabit(null)}>
+                                <div className="max-w-2xl w-full max-h-[90vh] overflow-y-auto" onClick={(e) => e.stopPropagation()}>
+                                    <EditHabitForm 
+                                        habit={editingHabit}
+                                        onEdit={editHabit} 
+                                        onCancel={() => setEditingHabit(null)}
+                                        categories={categories}
+                                    />
+                                </div>
+                            </div>
+                        )}
+
+                        {/* Today Tab */}
+                        {activeTab === 'today' && (
+                            <TodayTab 
+                                habits={habits}
+                                onComplete={completeHabit}
+                                onNotComplete={notCompleteHabit}
+                                onDelete={deleteHabit}
+                                onEdit={setEditingHabit}
+                                difficultyPoints={difficultyPoints}
+                                formatTime={formatTime}
+                            />
+                        )}
+
+                        {/* Tomorrow Tab */}
+                        {activeTab === 'tomorrow' && (
+                            <TomorrowTab 
+                                habits={habits}
+                                onComplete={completeHabit}
+                                onNotComplete={notCompleteHabit}
+                                onDelete={deleteHabit}
+                                onEdit={setEditingHabit}
+                                difficultyPoints={difficultyPoints}
+                                formatTime={formatTime}
+                            />
+                        )}
+
+                        {/* Up Next Tab */}
+                        {activeTab === 'upnext' && (
+                            <UpNextTab 
+                                habits={habits}
+                                onComplete={completeHabit}
+                                onNotComplete={notCompleteHabit}
+                                onDelete={deleteHabit}
+                                onEdit={setEditingHabit}
+                                difficultyPoints={difficultyPoints}
+                                formatTime={formatTime}
+                            />
+                        )}
+
+                        {/* Habits Tab */}
+                        {activeTab === 'habits' && (
+                            <div>
+                                {/* Category Filter */}
+                                <div className="glass rounded-lg p-4 mb-4">
+                                    <label className="block text-white font-semibold mb-2 text-sm md:text-base">Filter by Category</label>
+                                    <div className="flex gap-2 overflow-x-auto pb-2" style={{scrollbarWidth: 'thin', msOverflowStyle: 'auto'}}>
+                                        <style>{`
+                                            .category-scroll::-webkit-scrollbar {
+                                                height: 6px;
+                                            }
+                                            .category-scroll::-webkit-scrollbar-track {
+                                                background: rgba(139, 92, 246, 0.1);
+                                                border-radius: 3px;
+                                            }
+                                            .category-scroll::-webkit-scrollbar-thumb {
+                                                background: rgba(139, 92, 246, 0.3);
+                                                border-radius: 3px;
+                                            }
+                                            .category-scroll::-webkit-scrollbar-thumb:hover {
+                                                background: rgba(139, 92, 246, 0.5);
+                                            }
+                                        `}</style>
+                                        <div className="flex gap-2 category-scroll" style={{minWidth: 'max-content'}}>
+                                            <button
+                                                onClick={() => setSelectedCategory('all')}
+                                                className={`px-4 py-2 rounded-lg font-semibold transition whitespace-nowrap text-sm md:text-base ${
+                                                    selectedCategory === 'all'
+                                                        ? 'bg-purple-600 text-white'
+                                                        : 'bg-purple-800/50 text-white hover:bg-purple-700/50'
+                                                }`}
+                                            >
+                                                All
+                                            </button>
+                                            {categories.map(cat => (
+                                                <button
+                                                    key={cat}
+                                                    onClick={() => setSelectedCategory(cat)}
+                                                    className={`px-4 py-2 rounded-lg font-semibold transition whitespace-nowrap text-sm md:text-base ${
+                                                        selectedCategory === cat
+                                                            ? 'bg-purple-600 text-white'
+                                                            : 'bg-purple-800/50 text-white hover:bg-purple-700/50'
+                                                    }`}
+                                                >
+                                                    {cat}
+                                                </button>
+                                            ))}
+                                        </div>
+                                    </div>
+                                </div>
+
+                                <button
+                                    onClick={() => setShowAddHabit(!showAddHabit)}
+                                    className="w-full glass rounded-lg p-4 text-white font-semibold hover:bg-purple-600/50 transition mb-4"
+                                >
+                                    + Add New Habit
+                                </button>
+
+                                {showAddHabit && (
+                                    <AddHabitForm 
+                                        onAdd={addHabit} 
+                                        onCancel={() => setShowAddHabit(false)}
+                                        categories={categories}
+                                        defaultCategory={selectedCategory !== 'all' ? selectedCategory : 'Personal'}
+                                    />
+                                )}
+
+                                <div className="grid gap-4">
+                                    {(() => {
+                                        const filteredHabits = selectedCategory === 'all' 
+                                            ? habits 
+                                            : habits.filter(h => h.category === selectedCategory);
+                                        
+                                        const sortedHabits = [...filteredHabits].sort((a, b) => {
+                                            // First sort by deadline (habits with deadlines come first)
+                                            const aHasDeadline = a.deadline ? 1 : 0;
+                                            const bHasDeadline = b.deadline ? 1 : 0;
+                                            
+                                            if (bHasDeadline !== aHasDeadline) {
+                                                return bHasDeadline - aHasDeadline; // Habits with deadlines first
+                                            }
+                                            
+                                            // If both have deadlines, sort by closest deadline
+                                            if (aHasDeadline && bHasDeadline) {
+                                                const aDeadline = new Date(a.deadline).getTime();
+                                                const bDeadline = new Date(b.deadline).getTime();
+                                                if (aDeadline !== bDeadline) {
+                                                    return aDeadline - bDeadline; // Earliest deadline first
+                                                }
+                                            }
+                                            
+                                            // Then sort by points (highest first)
+                                            const pointsA = difficultyPoints[a.difficulty];
+                                            const pointsB = difficultyPoints[b.difficulty];
+                                            return pointsB - pointsA;
+                                        });
+
+                                        if (sortedHabits.length === 0) {
+                                            return (
+                                                <div className="glass rounded-lg p-8 text-center text-white">
+                                                    <p className="text-xl mb-2">
+                                                        {selectedCategory === 'all' ? 'No habits yet!' : `No habits in ${selectedCategory}`}
+                                                    </p>
+                                                    <p className="text-purple-300">
+                                                        {selectedCategory === 'all' ? 'Add your first habit to get started' : 'Add a habit to this category'}
+                                                    </p>
+                                                </div>
+                                            );
+                                        }
+
+                                        return sortedHabits.map(habit => (
+                                            <HabitCard
+                                                key={habit.id}
+                                                habit={habit}
+                                                onComplete={completeHabit}
+                                                onNotComplete={notCompleteHabit}
+                                                onDelete={deleteHabit}
+                                                onEdit={setEditingHabit}
+                                                difficultyPoints={difficultyPoints}
+                                            />
+                                        ));
+                                    })()}
+                                </div>
+                            </div>
+                        )}
+
+                        {/* Wallet Tab */}
+                        {activeTab === 'wallet' && (
+                            <WalletTab 
+                                points={points} 
+                                conversionRate={conversionRate}
+                                onConvert={convertPoints}
+                                conversionHistory={conversionHistory}
+                            />
+                        )}
+
+                        {/* Trash Tab */}
+                        {activeTab === 'trash' && (
+                            <TrashTab 
+                                deletedHabits={deletedHabits}
+                                onRestore={restoreHabit}
+                                onPermanentDelete={permanentlyDelete}
+                            />
+                        )}
+
+                        {/* Settings Tab */}
+                        {activeTab === 'settings' && (
+                            <SettingsTab 
+                                conversionRate={conversionRate}
+                                setConversionRate={(rate) => {
+                                    setConversionRate(rate);
+                                    saveToFirebase({ conversionRate: rate });
+                                }}
+                                categories={categories}
+                                onAddCategory={addCategory}
+                                onDeleteCategory={deleteCategory}
+                            />
+                        )}
+
+                        {/* History Tab */}
+                        {activeTab === 'history' && (
+                            <HistoryTab 
+                                completionHistory={completionHistory}
+                                difficultyPoints={difficultyPoints}
+                                onUndo={undoCompletion}
+                            />
+                        )}
+                    </div>
+                </div>
+            );
+        };
+
+        // Authentication Screen Component
+        const AuthScreen = () => {
+            const [isLogin, setIsLogin] = useState(true);
+            const [email, setEmail] = useState('');
+            const [password, setPassword] = useState('');
+            const [error, setError] = useState('');
+            const [loading, setLoading] = useState(false);
+
+            const handleAuth = async (e) => {
+                e.preventDefault();
+                setError('');
+                setLoading(true);
+
+                const { signInWithEmailAndPassword, createUserWithEmailAndPassword } = window.firebaseModules;
+                const { getAuth } = window.firebaseModules;
+                const auth = getAuth();
+
+                try {
+                    if (isLogin) {
+                        await signInWithEmailAndPassword(auth, email, password);
+                    } else {
+                        await createUserWithEmailAndPassword(auth, email, password);
+                    }
+                } catch (err) {
+                    setError(err.message);
+                }
+                setLoading(false);
+            };
+
+            return (
+                <div className="min-h-screen flex items-center justify-center p-4">
+                    <div className="glass rounded-2xl p-8 max-w-md w-full">
+                        <h1 className="text-4xl font-bold text-white mb-2 text-center">🔥 Locked In App</h1>
+                        <p className="text-purple-300 text-center mb-8">☁️ Synced across all your devices</p>
+                        
+                        <form onSubmit={handleAuth} className="space-y-4">
+                            <div>
+                                <label className="block text-white font-semibold mb-2">Email</label>
+                                <input
+                                    type="email"
+                                    value={email}
+                                    onChange={(e) => setEmail(e.target.value)}
+                                    className="w-full px-4 py-3 rounded-lg bg-purple-900/50 text-white placeholder-purple-400 border border-purple-600/30 focus:outline-none focus:border-purple-500"
+                                    placeholder="your@email.com"
+                                    required
+                                />
+                            </div>
+
+                            <div>
+                                <label className="block text-white font-semibold mb-2">Password</label>
+                                <input
+                                    type="password"
+                                    value={password}
+                                    onChange={(e) => setPassword(e.target.value)}
+                                    className="w-full px-4 py-3 rounded-lg bg-purple-900/50 text-white placeholder-purple-400 border border-purple-600/30 focus:outline-none focus:border-purple-500"
+                                    placeholder="••••••••"
+                                    required
+                                    minLength="6"
+                                />
+                            </div>
+
+                            {error && (
+                                <div className="bg-red-500/30 border border-red-400/30 rounded-lg p-3">
+                                    <p className="text-red-200 text-sm">{error}</p>
+                                </div>
+                            )}
+
+                            <button
+                                type="submit"
+                                disabled={loading}
+                                className="w-full bg-purple-600 text-white py-3 rounded-lg font-semibold hover:bg-purple-700 transition disabled:opacity-50"
+                            >
+                                {loading ? 'Please wait...' : (isLogin ? 'Sign In' : 'Create Account')}
+                            </button>
+                        </form>
+
+                        <div className="mt-6 text-center">
+                            <button
+                                onClick={() => setIsLogin(!isLogin)}
+                                className="text-purple-300 hover:text-white underline"
+                            >
+                                {isLogin ? "Don't have an account? Sign up" : 'Already have an account? Sign in'}
+                            </button>
+                        </div>
+                    </div>
+                </div>
+            );
+        };
+
+        const AddHabitForm = ({ onAdd, onCancel, categories, defaultCategory }) => {
+            const [formData, setFormData] = useState({
+                name: '',
+                type: 'positive',
+                difficulty: 'medium',
+                category: defaultCategory || 'Personal',
+                duration: 0,
+                deadline: '',
+                reminderTime: '',
+                recurring: true
+            });
+
+            const handleAddClick = () => {
+                if (!formData.name.trim()) {
+                    alert('Please enter a habit name');
+                    return;
+                }
+                
+                // Validate deadline for non-recurring tasks
+                if (!formData.recurring && !formData.deadline) {
+                    alert('Non-recurring tasks must have a deadline');
+                    return;
+                }
+                
+                onAdd(formData);
+                setFormData({ 
+                    name: '', 
+                    type: 'positive', 
+                    difficulty: 'medium', 
+                    category: defaultCategory || 'Personal', 
+                    duration: 0, 
+                    deadline: '', 
+                    reminderTime: '',
+                    recurring: true 
+                });
+            };
+
+            return (
+                <div className="glass rounded-lg p-4 md:p-6 mb-4">
+                    <div className="space-y-4">
+                        <div>
+                            <label className="block text-white font-semibold mb-2 text-sm md:text-base">Habit Name</label>
+                            <input
+                                type="text"
+                                value={formData.name}
+                                onChange={(e) => setFormData({...formData, name: e.target.value})}
+                                className="w-full px-4 py-2 rounded-lg bg-purple-900/50 text-white placeholder-purple-400 border border-purple-600/30 focus:outline-none focus:border-purple-500"
+                                placeholder="e.g., Morning workout"
+                            />
+                        </div>
+
+                        <div className="grid grid-cols-2 gap-4">
+                            <div>
+                                <label className="block text-white font-semibold mb-2 text-sm md:text-base">Type</label>
+                                <select
+                                    value={formData.type}
+                                    onChange={(e) => setFormData({...formData, type: e.target.value})}
+                                    className="w-full px-4 py-2 rounded-lg bg-purple-900/50 text-white border border-purple-600/30 focus:outline-none focus:border-purple-500"
+                                >
+                                    <option value="positive" className="bg-purple-900">✅ Positive</option>
+                                    <option value="negative" className="bg-purple-900">❌ Negative</option>
+                                </select>
+                            </div>
+
+                            <div>
+                                <label className="block text-white font-semibold mb-2 text-sm md:text-base">Difficulty</label>
+                                <select
+                                    value={formData.difficulty}
+                                    onChange={(e) => setFormData({...formData, difficulty: e.target.value})}
+                                    className="w-full px-4 py-2 rounded-lg bg-purple-900/50 text-white border border-purple-600/30 focus:outline-none focus:border-purple-500"
+                                >
+                                    <option value="easy" className="bg-purple-900">Easy (1pt)</option>
+                                    <option value="medium" className="bg-purple-900">Medium (3pts)</option>
+                                    <option value="hard" className="bg-purple-900">Hard (5pts)</option>
+                                    <option value="extreme" className="bg-purple-900">Extreme (10pts)</option>
+                                </select>
+                            </div>
+                        </div>
+
+                        <div className="grid grid-cols-2 gap-4">
+                            <div>
+                                <label className="block text-white font-semibold mb-2 text-sm md:text-base">Category</label>
+                                <select
+                                    value={formData.category}
+                                    onChange={(e) => setFormData({...formData, category: e.target.value})}
+                                    className="w-full px-4 py-2 rounded-lg bg-purple-900/50 text-white border border-purple-600/30 focus:outline-none focus:border-purple-500"
+                                >
+                                    {categories.map(cat => (
+                                        <option key={cat} value={cat} className="bg-purple-900">{cat}</option>
+                                    ))}
+                                </select>
+                            </div>
+
+                            <div>
+                                <label className="block text-white font-semibold mb-2 text-sm md:text-base">Duration (min)</label>
+                                <input
+                                    type="number"
+                                    value={formData.duration}
+                                    onChange={(e) => setFormData({...formData, duration: parseInt(e.target.value) || 0})}
+                                    className="w-full px-4 py-2 rounded-lg bg-purple-900/50 text-white border border-purple-600/30 focus:outline-none focus:border-purple-500"
+                                    placeholder="0"
+                                    min="0"
+                                />
+                            </div>
+                        </div>
+
+                        <div className="bg-purple-900/30 rounded-lg p-3">
+                            <label className="flex items-center gap-3 cursor-pointer">
+                                <div className="relative">
+                                    <input
+                                        type="checkbox"
+                                        checked={formData.recurring}
+                                        onChange={(e) => setFormData({...formData, recurring: e.target.checked})}
+                                        className="sr-only peer"
+                                    />
+                                    <div className="w-11 h-6 bg-purple-700 peer-focus:outline-none peer-focus:ring-2 peer-focus:ring-purple-400 rounded-full peer peer-checked:after:translate-x-full peer-checked:after:border-white after:content-[''] after:absolute after:top-[2px] after:left-[2px] after:bg-white after:border-gray-300 after:border after:rounded-full after:h-5 after:w-5 after:transition-all peer-checked:bg-green-500"></div>
+                                </div>
+                                <div>
+                                    <span className="text-white font-semibold text-sm md:text-base">🔄 Recurring Habit</span>
+                                    <p className="text-purple-300 text-xs">Uncheck for one-time tasks (deadline required)</p>
+                                </div>
+                            </label>
+                        </div>
+
+                        <div className="grid grid-cols-2 gap-4">
+                            <div>
+                                <label className="block text-white font-semibold mb-2 text-sm md:text-base">
+                                    Deadline {!formData.recurring && <span className="text-red-400">*</span>}
+                                </label>
+                                <input
+                                    type="date"
+                                    value={formData.deadline}
+                                    onChange={(e) => setFormData({...formData, deadline: e.target.value})}
+                                    className="w-full px-4 py-2 rounded-lg bg-purple-900/50 text-white border border-purple-600/30 focus:outline-none focus:border-purple-500"
+                                    required={!formData.recurring}
+                                />
+                            </div>
+
+                            <div>
+                                <label className="block text-white font-semibold mb-2 text-sm md:text-base">Reminder Time</label>
+                                <input
+                                    type="time"
+                                    value={formData.reminderTime}
+                                    onChange={(e) => setFormData({...formData, reminderTime: e.target.value})}
+                                    className="w-full px-4 py-2 rounded-lg bg-purple-900/50 text-white border border-purple-600/30 focus:outline-none focus:border-purple-500"
+                                />
+                            </div>
+                        </div>
+
+                        {formData.deadline && formData.type === 'positive' && (
+                            <div className="bg-green-500/20 border border-green-400/30 rounded-lg p-3">
+                                <p className="text-green-200 text-xs md:text-sm">
+                                    💡 Bonus: Complete before deadline to earn +1 point per day left!
+                                </p>
+                            </div>
+                        )}
+
+                        <div className="flex gap-2">
+                            <button
+                                onClick={handleAddClick}
+                                className="flex-1 bg-purple-600 text-white py-2 rounded-lg font-semibold hover:bg-purple-700 transition"
+                            >
+                                Add Habit
+                            </button>
+                            <button
+                                onClick={onCancel}
+                                className="flex-1 bg-purple-800/50 text-white py-2 rounded-lg font-semibold hover:bg-purple-700/50 transition"
+                            >
+                                Cancel
+                            </button>
+                        </div>
+                    </div>
+                </div>
+            );
+        };
+
+        const EditHabitForm = ({ habit, onEdit, onCancel, categories }) => {
+            const [formData, setFormData] = useState({
+                name: habit.name,
+                type: habit.type,
+                difficulty: habit.difficulty,
+                category: habit.category || 'Personal',
+                duration: habit.duration || 0,
+                deadline: habit.deadline || '',
+                reminderTime: habit.reminderTime || '',
+                recurring: habit.recurring !== undefined ? habit.recurring : true
+            });
+
+            const handleSaveClick = () => {
+                if (!formData.name.trim()) {
+                    alert('Please enter a habit name');
+                    return;
+                }
+                
+                // Validate deadline for non-recurring tasks
+                if (!formData.recurring && !formData.deadline) {
+                    alert('Non-recurring tasks must have a deadline');
+                    return;
+                }
+                
+                onEdit(habit.id, formData);
+            };
+
+            return (
+                <div className="glass rounded-lg p-4 md:p-6 mb-4 border-2 border-blue-500">
+                    <h3 className="text-white font-bold mb-4">Edit Habit</h3>
+                    <div className="space-y-4">
+                        <div>
+                            <label className="block text-white font-semibold mb-2 text-sm md:text-base">Habit Name</label>
+                            <input
+                                type="text"
+                                value={formData.name}
+                                onChange={(e) => setFormData({...formData, name: e.target.value})}
+                                className="w-full px-4 py-2 rounded-lg bg-purple-900/50 text-white placeholder-purple-400 border border-purple-600/30 focus:outline-none focus:border-purple-500"
+                                placeholder="e.g., Morning workout"
+                            />
+                        </div>
+
+                        <div className="grid grid-cols-2 gap-4">
+                            <div>
+                                <label className="block text-white font-semibold mb-2 text-sm md:text-base">Type</label>
+                                <select
+                                    value={formData.type}
+                                    onChange={(e) => setFormData({...formData, type: e.target.value})}
+                                    className="w-full px-4 py-2 rounded-lg bg-purple-900/50 text-white border border-purple-600/30 focus:outline-none focus:border-purple-500"
+                                >
+                                    <option value="positive" className="bg-purple-900">✅ Positive</option>
+                                    <option value="negative" className="bg-purple-900">❌ Negative</option>
+                                </select>
+                            </div>
+
+                            <div>
+                                <label className="block text-white font-semibold mb-2 text-sm md:text-base">Difficulty</label>
+                                <select
+                                    value={formData.difficulty}
+                                    onChange={(e) => setFormData({...formData, difficulty: e.target.value})}
+                                    className="w-full px-4 py-2 rounded-lg bg-purple-900/50 text-white border border-purple-600/30 focus:outline-none focus:border-purple-500"
+                                >
+                                    <option value="easy" className="bg-purple-900">Easy (1pt)</option>
+                                    <option value="medium" className="bg-purple-900">Medium (3pts)</option>
+                                    <option value="hard" className="bg-purple-900">Hard (5pts)</option>
+                                    <option value="extreme" className="bg-purple-900">Extreme (10pts)</option>
+                                </select>
+                            </div>
+                        </div>
+
+                        <div className="grid grid-cols-2 gap-4">
+                            <div>
+                                <label className="block text-white font-semibold mb-2 text-sm md:text-base">Category</label>
+                                <select
+                                    value={formData.category}
+                                    onChange={(e) => setFormData({...formData, category: e.target.value})}
+                                    className="w-full px-4 py-2 rounded-lg bg-purple-900/50 text-white border border-purple-600/30 focus:outline-none focus:border-purple-500"
+                                >
+                                    {categories.map(cat => (
+                                        <option key={cat} value={cat} className="bg-purple-900">{cat}</option>
+                                    ))}
+                                </select>
+                            </div>
+
+                            <div>
+                                <label className="block text-white font-semibold mb-2 text-sm md:text-base">Duration (min)</label>
+                                <input
+                                    type="number"
+                                    value={formData.duration}
+                                    onChange={(e) => setFormData({...formData, duration: parseInt(e.target.value) || 0})}
+                                    className="w-full px-4 py-2 rounded-lg bg-purple-900/50 text-white border border-purple-600/30 focus:outline-none focus:border-purple-500"
+                                    placeholder="0"
+                                    min="0"
+                                />
+                            </div>
+                        </div>
+
+                        <div className="bg-purple-900/30 rounded-lg p-3">
+                            <label className="flex items-center gap-3 cursor-pointer">
+                                <div className="relative">
+                                    <input
+                                        type="checkbox"
+                                        checked={formData.recurring}
+                                        onChange={(e) => setFormData({...formData, recurring: e.target.checked})}
+                                        className="sr-only peer"
+                                    />
+                                    <div className="w-11 h-6 bg-purple-700 peer-focus:outline-none peer-focus:ring-2 peer-focus:ring-purple-400 rounded-full peer peer-checked:after:translate-x-full peer-checked:after:border-white after:content-[''] after:absolute after:top-[2px] after:left-[2px] after:bg-white after:border-gray-300 after:border after:rounded-full after:h-5 after:w-5 after:transition-all peer-checked:bg-green-500"></div>
+                                </div>
+                                <div>
+                                    <span className="text-white font-semibold text-sm md:text-base">🔄 Recurring Habit</span>
+                                    <p className="text-purple-300 text-xs">Uncheck for one-time tasks (deadline required)</p>
+                                </div>
+                            </label>
+                        </div>
+
+                        <div className="grid grid-cols-2 gap-4">
+                            <div>
+                                <label className="block text-white font-semibold mb-2 text-sm md:text-base">
+                                    Deadline {!formData.recurring && <span className="text-red-400">*</span>}
+                                </label>
+                                <input
+                                    type="date"
+                                    value={formData.deadline}
+                                    onChange={(e) => setFormData({...formData, deadline: e.target.value})}
+                                    className="w-full px-4 py-2 rounded-lg bg-purple-900/50 text-white border border-purple-600/30 focus:outline-none focus:border-purple-500"
+                                    required={!formData.recurring}
+                                />
+                            </div>
+
+                            <div>
+                                <label className="block text-white font-semibold mb-2 text-sm md:text-base">Reminder Time</label>
+                                <input
+                                    type="time"
+                                    value={formData.reminderTime}
+                                    onChange={(e) => setFormData({...formData, reminderTime: e.target.value})}
+                                    className="w-full px-4 py-2 rounded-lg bg-purple-900/50 text-white border border-purple-600/30 focus:outline-none focus:border-purple-500"
+                                />
+                            </div>
+                        </div>
+
+                        {formData.deadline && formData.type === 'positive' && (
+                            <div className="bg-green-500/20 border border-green-400/30 rounded-lg p-3">
+                                <p className="text-green-200 text-xs md:text-sm">
+                                    💡 Bonus: Complete before deadline to earn +1 point per day left!
+                                </p>
+                            </div>
+                        )}
+
+                        <div className="flex gap-2">
+                            <button
+                                onClick={handleSaveClick}
+                                className="flex-1 bg-blue-500 text-white py-2 rounded-lg font-semibold hover:bg-blue-600 transition"
+                            >
+                                Save Changes
+                            </button>
+                            <button
+                                onClick={onCancel}
+                                className="flex-1 bg-purple-800/50 text-white py-2 rounded-lg font-semibold hover:bg-purple-700/50 transition"
+                            >
+                                Cancel
+                            </button>
+                        </div>
+                    </div>
+                </div>
+            );
+        };
+
+        const HabitCard = ({ habit, onComplete, onNotComplete, onDelete, onEdit, difficultyPoints }) => {
+            const pointValue = difficultyPoints[habit.difficulty];
+            const isPositive = habit.type === 'positive';
+            
+            const formatTime = (minutes) => {
+                if (minutes < 60) {
+                    return `${minutes} min`;
+                }
+                
+                const days = Math.floor(minutes / (24 * 60));
+                const hours = Math.floor((minutes % (24 * 60)) / 60);
+                const mins = Math.floor(minutes % 60);
+                
+                const parts = [];
+                if (days > 0) parts.push(`${days} day${days !== 1 ? 's' : ''}`);
+                if (hours > 0) parts.push(`${hours} hr${hours !== 1 ? 's' : ''}`);
+                if (mins > 0) parts.push(`${mins} min`);
+                
+                return parts.join(' ');
+            };
+            
+            const getDaysUntilDeadline = (deadline) => {
+                if (!deadline) return null;
+                const now = new Date();
+                const deadlineDate = new Date(deadline);
+                const diffTime = deadlineDate - now;
+                const diffDays = Math.ceil(diffTime / (1000 * 60 * 60 * 24));
+                return diffDays;
+            };
+
+            const getDeadlineStatus = (deadline) => {
+                const days = getDaysUntilDeadline(deadline);
+                if (days === null) return null;
+                if (days < 0) return { text: 'Overdue', color: 'red', days };
+                if (days === 0) return { text: 'Due today!', color: 'orange', days };
+                if (days === 1) return { text: '1 day left', color: 'yellow', days };
+                return { text: `${days} days left`, color: 'green', days };
+            };
+
+            // Calculate days avoided for negative habits
+            const getDaysAvoided = () => {
+                if (habit.type !== 'negative' || !habit.negativeAvoidanceStart) return null;
+                const now = new Date();
+                const avoidanceStart = new Date(habit.negativeAvoidanceStart);
+                const daysAvoided = Math.floor((now - avoidanceStart) / (24 * 60 * 60 * 1000));
+                const completedWeeks = Math.floor(daysAvoided / 7);
+                const earnedPoints = completedWeeks * pointValue;
+                return { days: daysAvoided, weeks: completedWeeks, earnedPoints };
+            };
+
+            const deadlineStatus = habit.deadline ? getDeadlineStatus(habit.deadline) : null;
+            const avoidanceInfo = !isPositive ? getDaysAvoided() : null;
+
+            return (
+                <div className={`glass rounded-lg p-3 md:p-4 border-l-4 ${
+                    isPositive ? 'border-green-400' : 'border-red-400'
+                }`}>
+                    <div className="flex justify-between items-start mb-3 gap-2">
+                        <div className="flex-1 min-w-0">
+                            <h3 className="text-lg md:text-xl font-bold text-white mb-1 mobile-card-title mobile-text-wrap break-words">{habit.name}</h3>
+                            <div className="flex gap-1 md:gap-2 flex-wrap">
+                                <span className={`px-2 py-1 rounded text-xs font-semibold ${
+                                    isPositive ? 'bg-green-500/30 text-green-100' : 'bg-red-500/30 text-red-100'
+                                }`}>
+                                    {habit.type}
+                                </span>
+                                <span className="px-2 py-1 rounded text-xs font-semibold bg-purple-500/30 text-purple-100">
+                                    {habit.difficulty} ({isPositive ? '+' : '-'}{pointValue}pts)
+                                </span>
+                                {habit.category && (
+                                    <span className="px-2 py-1 rounded text-xs font-semibold bg-blue-500/30 text-blue-100 mobile-text-wrap break-words">
+                                        📁 {habit.category}
+                                    </span>
+                                )}
+                                {habit.duration > 0 && (
+                                    <span className="px-2 py-1 rounded text-xs font-semibold bg-cyan-500/30 text-cyan-100">
+                                        ⏱️ {formatTime(habit.duration)}
+                                    </span>
+                                )}
+                                {deadlineStatus && (
+                                    <span className={`px-2 py-1 rounded text-xs font-semibold ${
+                                        deadlineStatus.color === 'red' ? 'bg-red-500/30 text-red-100' :
+                                        deadlineStatus.color === 'orange' ? 'bg-orange-500/30 text-orange-100' :
+                                        deadlineStatus.color === 'yellow' ? 'bg-yellow-500/30 text-yellow-100' :
+                                        'bg-green-500/30 text-green-100'
+                                    }`}>
+                                        📅 {deadlineStatus.text}
+                                        {isPositive && deadlineStatus.days > 0 && ` (+${deadlineStatus.days})`}
+                                    </span>
+                                )}
+                                {avoidanceInfo && (
+                                    <span className="px-2 py-1 rounded text-xs font-semibold bg-green-500/30 text-green-100">
+                                        ✨ {avoidanceInfo.days} day{avoidanceInfo.days !== 1 ? 's' : ''} avoided
+                                        {avoidanceInfo.earnedPoints > 0 && ` (+${avoidanceInfo.earnedPoints}pts earned)`}
+                                    </span>
+                                )}
+                                {habit.streak > 0 && isPositive && (
+                                    <span className="px-2 py-1 rounded text-xs font-semibold bg-orange-500/30 text-orange-100 flex items-center gap-1">
+                                        <span className="streak-flame">🔥</span> {habit.streak} day
+                                    </span>
+                                )}
+                            </div>
+                        </div>
+                        <div className="flex gap-1 md:gap-2 flex-shrink-0">
+                            <button
+                                onClick={() => onEdit(habit)}
+                                className="text-white/60 hover:text-blue-300 transition text-lg md:text-xl"
+                                title="Edit habit"
+                            >
+                                ✏️
+                            </button>
+                            <button
+                                onClick={() => onDelete(habit.id)}
+                                className="text-white/60 hover:text-white transition text-lg md:text-xl"
+                                title="Delete habit"
+                            >
+                                ✕
+                            </button>
+                        </div>
+                    </div>
+
+                    <div className="flex flex-col sm:flex-row justify-between items-start sm:items-center gap-3">
+                        <div className="text-purple-300 text-xs md:text-sm w-full sm:w-auto mobile-text-wrap break-words">
+                            Total: {habit.totalCompletions} times
+                            {habit.lastCompleted && (
+                                <span className="ml-2">
+                                    • Last: {new Date(habit.lastCompleted).toLocaleDateString()}
+                                </span>
+                            )}
+                        </div>
+                        <div className="flex gap-2 w-full sm:w-auto">
+                            {/* Only show "Not Done" button for positive habits */}
+                            {isPositive && onNotComplete && (
+                                <button
+                                    onClick={() => onNotComplete(habit.id)}
+                                    className="flex-1 sm:flex-none px-2 md:px-4 py-2 rounded-lg font-semibold transition bg-red-900/60 hover:bg-red-900/80 text-red-200 text-xs md:text-sm"
+                                    title="Not completed - deducts points and resets streak"
+                                >
+                                    Not Done ✗
+                                </button>
+                            )}
+                            <button
+                                onClick={() => onComplete(habit.id)}
+                                className={`flex-1 sm:flex-none px-3 md:px-6 py-2 rounded-lg font-semibold transition text-xs md:text-sm ${
+                                    isPositive 
+                                        ? 'bg-green-900/60 hover:bg-green-900/80 text-green-200' 
+                                        : 'bg-red-900/60 hover:bg-red-900/80 text-red-200'
+                                }`}
+                            >
+                                {isPositive ? 'Complete ✓' : 'Log ✓'}
+                            </button>
+                        </div>
+                    </div>
+                </div>
+            );
+        };
+
+        const TodayTab = ({ habits, onComplete, onNotComplete, onDelete, onEdit, difficultyPoints, formatTime }) => {
+            const today = new Date().toDateString();
+            
+            // Filter habits that have a deadline today or are overdue
+            const todayHabits = habits.filter(habit => {
+                if (!habit.deadline) return false;
+                const deadline = new Date(habit.deadline);
+                const daysUntil = Math.ceil((deadline - new Date()) / (1000 * 60 * 60 * 24));
+                return daysUntil <= 0; // Due today or overdue
+            });
+
+            // Calculate total time needed for today's tasks
+            const totalTime = todayHabits.reduce((sum, habit) => sum + (habit.duration || 0), 0);
+
+            return (
+                <div className="space-y-6">
+                    <div className="glass rounded-lg p-4 md:p-6">
+                        <div className="flex justify-between items-center mb-4 gap-4">
+                            <div className="min-w-0 flex-1">
+                                <h2 className="text-xl md:text-2xl font-bold text-white mb-1">📅 Today's Tasks</h2>
+                                <p className="text-purple-300 text-xs md:text-sm mobile-text-wrap break-words">{new Date().toLocaleDateString('en-US', { weekday: 'long', month: 'long', day: 'numeric', year: 'numeric' })}</p>
+                            </div>
+                            {totalTime > 0 && (
+                                <div className="text-right flex-shrink-0">
+                                    <div className="text-xs md:text-sm text-purple-300">Total Time</div>
+                                    <div className="text-xl md:text-2xl font-bold text-white">{formatTime(totalTime)}</div>
+                                </div>
+                            )}
+                        </div>
+
+                        {todayHabits.length === 0 ? (
+                            <div className="text-center py-12">
+                                <div className="text-6xl mb-4">🎉</div>
+                                <p className="text-white text-xl mb-2">No tasks due today!</p>
+                                <p className="text-purple-300">Enjoy your free time or add tasks with deadlines</p>
+                            </div>
+                        ) : (
+                            <div className="space-y-3">
+                                {todayHabits
+                                    .sort((a, b) => {
+                                        // Sort by deadline first (earliest/most overdue first)
+                                        const aDeadline = new Date(a.deadline).getTime();
+                                        const bDeadline = new Date(b.deadline).getTime();
+                                        if (aDeadline !== bDeadline) {
+                                            return aDeadline - bDeadline;
+                                        }
+                                        
+                                        // Then sort by points (highest first)
+                                        const pointsA = difficultyPoints[a.difficulty];
+                                        const pointsB = difficultyPoints[b.difficulty];
+                                        return pointsB - pointsA;
+                                    })
+                                    .map(habit => (
+                                        <HabitCard
+                                            key={habit.id}
+                                            habit={habit}
+                                            onComplete={onComplete}
+                                            onNotComplete={onNotComplete}
+                                            onDelete={onDelete}
+                                            onEdit={onEdit}
+                                            difficultyPoints={difficultyPoints}
+                                        />
+                                    ))
+                                }
+                            </div>
+                        )}
+                    </div>
+                </div>
+            );
+        };
+
+        const WalletTab = ({ points, conversionRate, onConvert, conversionHistory }) => {
+            const [conversionType, setConversionType] = useState('points-to-money');
+            const [amount, setAmount] = useState(5);
+            const [reason, setReason] = useState('');
+            const [showHistory, setShowHistory] = useState(false);
+            const [historyFilter, setHistoryFilter] = useState('all');
+
+            const formatTime = (minutes) => {
+                if (minutes < 60) {
+                    return `${minutes} min`;
+                }
+                
+                const days = Math.floor(minutes / (24 * 60));
+                const hours = Math.floor((minutes % (24 * 60)) / 60);
+                const mins = Math.floor(minutes % 60);
+                
+                const parts = [];
+                if (days > 0) parts.push(`${days} day${days !== 1 ? 's' : ''}`);
+                if (hours > 0) parts.push(`${hours} hr${hours !== 1 ? 's' : ''}`);
+                if (mins > 0) parts.push(`${mins} min`);
+                
+                return parts.join(' ');
+            };
+
+            const getConversionInfo = () => {
+                switch(conversionType) {
+                    case 'points-to-money':
+                        return {
+                            title: '💰 Points → Money',
+                            label: 'Amount in $',
+                            cost: `Costs: ${(amount / conversionRate.money).toFixed(1)} points`,
+                            buttonText: `Convert to $${amount}`,
+                            placeholder: '5'
+                        };
+                    case 'points-to-time':
+                        return {
+                            title: '⏰ Points → Time',
+                            label: 'Amount in minutes',
+                            cost: `Costs: ${(amount / conversionRate.time).toFixed(1)} points • ${formatTime(amount)}`,
+                            buttonText: `Convert to ${formatTime(amount)}`,
+                            placeholder: '60'
+                        };
+                    case 'money-to-points':
+                        return {
+                            title: '💵 Money → Points',
+                            label: 'Amount in $',
+                            cost: `Gives: ${(amount * conversionRate.money).toFixed(1)} points`,
+                            buttonText: `Convert $${amount} to Points`,
+                            placeholder: '10'
+                        };
+                    case 'add-points':
+                        return {
+                            title: '➕ Add Points',
+                            label: 'Points to add',
+                            cost: `Will add: ${amount} points`,
+                            buttonText: `Add ${amount} Points`,
+                            placeholder: '10'
+                        };
+                    case 'subtract-points':
+                        return {
+                            title: '➖ Subtract Points',
+                            label: 'Points to subtract',
+                            cost: `Will subtract: ${amount} points`,
+                            buttonText: `Subtract ${amount} Points`,
+                            placeholder: '10'
+                        };
+                }
+            };
+
+            const conversionInfo = getConversionInfo();
+
+            const handleConvert = () => {
+                if (conversionType === 'add-points' || conversionType === 'subtract-points') {
+                    if (!reason.trim()) {
+                        alert('Please provide a reason for manual point adjustment');
+                        return;
+                    }
+                }
+                if (onConvert(conversionType, amount, reason)) {
+                    setReason('');
+                }
+            };
+
+            // Filter conversion history
+            const filteredHistory = historyFilter === 'all' 
+                ? conversionHistory 
+                : conversionHistory.filter(entry => entry.type === historyFilter);
+
+            return (
+                <div className="space-y-6">
+                    <div className="glass rounded-lg p-4 md:p-6">
+                        <h2 className="text-xl md:text-2xl font-bold text-white mb-4">Your Wallet</h2>
+                        <div className="text-center mb-6">
+                            <div className={`text-5xl md:text-6xl font-bold mb-2 ${points < 0 ? 'text-red-400' : 'text-white'}`}>
+                                {points.toFixed(1)}
+                            </div>
+                            <div className="text-purple-300 text-sm">Available Points</div>
+                            {points < 0 && (
+                                <div className="text-red-300 text-xs mt-1">⚠️ In debt - complete habits to recover</div>
+                            )}
+                        </div>
+
+                        {/* Conversion Type Selector */}
+                        <div className="mb-4">
+                            <label className="block text-white font-semibold mb-2 text-sm">Conversion Type</label>
+                            <select
+                                value={conversionType}
+                                onChange={(e) => {
+                                    setConversionType(e.target.value);
+                                    setReason('');
+                                }}
+                                className="w-full px-4 py-2 rounded-lg bg-purple-900/50 text-white border border-purple-600/30 focus:outline-none focus:border-purple-500"
+                            >
+                                <option value="points-to-money" className="bg-purple-900">💰 Points → Money</option>
+                                <option value="points-to-time" className="bg-purple-900">⏰ Points → Time</option>
+                                <option value="money-to-points" className="bg-purple-900">💵 Money → Points</option>
+                                <option value="add-points" className="bg-purple-900">➕ Add Points (Manual)</option>
+                                <option value="subtract-points" className="bg-purple-900">➖ Subtract Points (Manual)</option>
+                            </select>
+                        </div>
+
+                        {/* Conversion Form */}
+                        <div className="bg-purple-900/30 rounded-lg p-4 mb-4">
+                            <h3 className="text-white font-semibold mb-3 flex items-center gap-2 text-sm md:text-base">
+                                {conversionInfo.title}
+                            </h3>
+                            {(conversionType === 'points-to-money' || conversionType === 'points-to-time') && (
+                                <p className="text-purple-300 text-xs md:text-sm mb-3">
+                                    1 point = {conversionType === 'points-to-money' ? `$${conversionRate.money}` : `${conversionRate.time} minutes`}
+                                </p>
+                            )}
+                            {conversionType === 'money-to-points' && (
+                                <p className="text-purple-300 text-xs md:text-sm mb-3">
+                                    $1 = {conversionRate.money} point{conversionRate.money !== 1 ? 's' : ''}
+                                </p>
+                            )}
+                            <label className="block text-white font-semibold mb-2 text-sm">{conversionInfo.label}</label>
+                            <input
+                                type="number"
+                                value={amount}
+                                onChange={(e) => setAmount(parseFloat(e.target.value) || 0)}
+                                className="w-full px-4 py-2 rounded-lg bg-purple-900/50 text-white mb-3 border border-purple-600/30 focus:outline-none focus:border-purple-500"
+                                placeholder={conversionInfo.placeholder}
+                                min="0"
+                                step={conversionType === 'points-to-time' ? '15' : '1'}
+                            />
+                            <div className="text-purple-300 text-xs md:text-sm mb-3 mobile-text-wrap break-words">
+                                {conversionInfo.cost}
+                            </div>
+
+                            {/* Reason field for manual adjustments */}
+                            {(conversionType === 'add-points' || conversionType === 'subtract-points') && (
+                                <div className="mb-3">
+                                    <label className="block text-white font-semibold mb-2 text-sm">Reason (Required)</label>
+                                    <input
+                                        type="text"
+                                        value={reason}
+                                        onChange={(e) => setReason(e.target.value)}
+                                        className="w-full px-4 py-2 rounded-lg bg-purple-900/50 text-white border border-purple-600/30 focus:outline-none focus:border-purple-500"
+                                        placeholder="e.g., Birthday gift, Emergency expense, etc."
+                                        required
+                                    />
+                                </div>
+                            )}
+
+                            {/* Optional reason for other conversions */}
+                            {(conversionType !== 'add-points' && conversionType !== 'subtract-points') && (
+                                <div className="mb-3">
+                                    <label className="block text-white font-semibold mb-2 text-sm">Reason (Optional)</label>
+                                    <input
+                                        type="text"
+                                        value={reason}
+                                        onChange={(e) => setReason(e.target.value)}
+                                        className="w-full px-4 py-2 rounded-lg bg-purple-900/50 text-white border border-purple-600/30 focus:outline-none focus:border-purple-500"
+                                        placeholder="e.g., Movie ticket, Coffee break, etc."
+                                    />
+                                </div>
+                            )}
+
+                            <button
+                                onClick={handleConvert}
+                                className="w-full bg-purple-600 text-white py-2 rounded-lg font-semibold hover:bg-purple-700 transition text-sm md:text-base"
+                            >
+                                {conversionInfo.buttonText}
+                            </button>
+                        </div>
+
+                        {/* Conversion History Toggle */}
+                        <button
+                            onClick={() => setShowHistory(!showHistory)}
+                            className="w-full bg-purple-800/50 text-white py-3 rounded-lg font-semibold hover:bg-purple-700/50 transition mb-4"
+                        >
+                            {showHistory ? '📊 Hide' : '📊 Show'} Conversion History ({conversionHistory.length})
+                        </button>
+
+                        {/* Conversion History */}
+                        {showHistory && (
+                            <div className="bg-purple-900/30 rounded-lg p-4">
+                                <div className="flex justify-between items-center mb-4">
+                                    <h3 className="text-white font-semibold text-sm md:text-base">Conversion History</h3>
+                                    <select
+                                        value={historyFilter}
+                                        onChange={(e) => setHistoryFilter(e.target.value)}
+                                        className="px-3 py-1 rounded-lg bg-purple-900/50 text-white border border-purple-600/30 text-xs md:text-sm"
+                                    >
+                                        <option value="all" className="bg-purple-900">All Types</option>
+                                        <option value="Points → Money" className="bg-purple-900">Points → Money</option>
+                                        <option value="Points → Time" className="bg-purple-900">Points → Time</option>
+                                        <option value="Money → Points" className="bg-purple-900">Money → Points</option>
+                                        <option value="Manual Add" className="bg-purple-900">Manual Add</option>
+                                        <option value="Manual Subtract" className="bg-purple-900">Manual Subtract</option>
+                                    </select>
+                                </div>
+
+                                {filteredHistory.length === 0 ? (
+                                    <p className="text-purple-300 text-center py-4 text-sm">No conversion history yet</p>
+                                ) : (
+                                    <div className="space-y-2 max-h-96 overflow-y-auto">
+                                        {filteredHistory.map(entry => (
+                                            <div key={entry.id} className="bg-purple-900/50 rounded-lg p-3">
+                                                <div className="flex justify-between items-start gap-2 mb-1">
+                                                    <div className="flex-1 min-w-0">
+                                                        <div className="text-white font-semibold text-sm mobile-text-wrap break-words">
+                                                            {entry.type}
+                                                        </div>
+                                                        <div className="text-purple-300 text-xs mobile-text-wrap break-words">
+                                                            {entry.description}
+                                                        </div>
+                                                        {entry.reason && entry.reason !== 'No reason provided' && (
+                                                            <div className="text-purple-400 text-xs italic mt-1 mobile-text-wrap break-words">
+                                                                💭 {entry.reason}
+                                                            </div>
+                                                        )}
+                                                    </div>
+                                                    <div className="text-right flex-shrink-0">
+                                                        <div className={`text-base md:text-lg font-bold ${
+                                                            entry.pointsChange >= 0 ? 'text-green-300' : 'text-red-300'
+                                                        }`}>
+                                                            {entry.pointsChange >= 0 ? '+' : ''}{entry.pointsChange.toFixed(1)}
+                                                        </div>
+                                                        <div className="text-purple-400 text-xs">
+                                                            {new Date(entry.timestamp).toLocaleDateString()}
+                                                        </div>
+                                                        <div className="text-purple-400 text-xs">
+                                                            {new Date(entry.timestamp).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })}
+                                                        </div>
+                                                    </div>
+                                                </div>
+                                            </div>
+                                        ))}
+                                    </div>
+                                )}
+                            </div>
+                        )}
+                    </div>
+                </div>
+            );
+        };
+
+        const TrashTab = ({ deletedHabits, onRestore, onPermanentDelete }) => {
+            const getDaysUntilDeletion = (deletedAt) => {
+                const now = Date.now();
+                const sevenDays = 7 * 24 * 60 * 60 * 1000;
+                const timeLeft = sevenDays - (now - deletedAt);
+                return Math.ceil(timeLeft / (24 * 60 * 60 * 1000));
+            };
+
+            return (
+                <div className="space-y-6">
+                    <div className="glass rounded-lg p-4 md:p-6">
+                        <h2 className="text-xl md:text-2xl font-bold text-white mb-2">🗑️ Trash</h2>
+                        <p className="text-purple-300 mb-4 text-sm md:text-base">Deleted habits will be permanently removed after 7 days</p>
+
+                        {deletedHabits.length === 0 ? (
+                            <div className="text-center py-8">
+                                <p className="text-white text-lg mb-2">Trash is empty</p>
+                                <p className="text-purple-300">Deleted habits will appear here</p>
+                            </div>
+                        ) : (
+                            <div className="space-y-3">
+                                {deletedHabits.map(habit => {
+                                    const daysLeft = getDaysUntilDeletion(habit.deletedAt);
+                                    const isPositive = habit.type === 'positive';
+                                    
+                                    return (
+                                        <div key={habit.id} className={`bg-purple-900/30 rounded-lg p-3 md:p-4 border-l-4 ${
+                                            isPositive ? 'border-green-400/50' : 'border-red-400/50'
+                                        }`}>
+                                            <div className="flex justify-between items-start mb-2">
+                                                <div className="flex-1 min-w-0">
+                                                    <h3 className="text-base md:text-lg font-bold text-white mb-1 mobile-text-wrap break-words">{habit.name}</h3>
+                                                    <div className="flex gap-1 md:gap-2 flex-wrap">
+                                                        <span className={`px-2 py-1 rounded text-xs font-semibold ${
+                                                            isPositive ? 'bg-green-500/20 text-green-200' : 'bg-red-500/20 text-red-200'
+                                                        }`}>
+                                                            {habit.type}
+                                                        </span>
+                                                        <span className="px-2 py-1 rounded text-xs font-semibold bg-purple-500/20 text-purple-200">
+                                                            {habit.difficulty}
+                                                        </span>
+                                                        <span className="px-2 py-1 rounded text-xs font-semibold bg-yellow-500/20 text-yellow-200">
+                                                            ⏰ Deletes in {daysLeft} day{daysLeft !== 1 ? 's' : ''}
+                                                        </span>
+                                                    </div>
+                                                </div>
+                                            </div>
+                                            
+                                            <div className="text-purple-300 text-xs md:text-sm mb-3 mobile-text-wrap break-words">
+                                                Total completions: {habit.totalCompletions} times
+                                                {habit.streak > 0 && ` • Streak: ${habit.streak} days`}
+                                            </div>
+
+                                            <div className="flex gap-2">
+                                                <button
+                                                    onClick={() => onRestore(habit.id)}
+                                                    className="flex-1 bg-green-500 hover:bg-green-600 text-white py-2 rounded-lg font-semibold transition text-xs md:text-sm"
+                                                >
+                                                    ↺ Restore
+                                                </button>
+                                                <button
+                                                    onClick={() => {
+                                                        if (confirm('Permanently delete this habit? This cannot be undone.')) {
+                                                            onPermanentDelete(habit.id);
+                                                        }
+                                                    }}
+                                                    className="flex-1 bg-red-500 hover:bg-red-600 text-white py-2 rounded-lg font-semibold transition text-xs md:text-sm"
+                                                >
+                                                    Delete Forever
+                                                </button>
+                                            </div>
+                                        </div>
+                                    );
+                                })}
+                            </div>
+                        )}
+                    </div>
+                </div>
+            );
+        };
+
+        const SettingsTab = ({ conversionRate, setConversionRate, categories, onAddCategory, onDeleteCategory }) => {
+            const [localRate, setLocalRate] = useState(conversionRate);
+            const [newCategory, setNewCategory] = useState('');
+
+            const handleSave = () => {
+                setConversionRate(localRate);
+            };
+
+            const handleAddCategory = () => {
+                if (onAddCategory(newCategory)) {
+                    setNewCategory('');
+                }
+            };
+
+            return (
+                <div className="glass rounded-lg p-4 md:p-6">
+                    <h2 className="text-xl md:text-2xl font-bold text-white mb-6">Settings</h2>
+                    
+                    <div className="space-y-6">
+                        <div>
+                            <label className="block text-white font-semibold mb-2 text-sm md:text-base">
+                                Money Conversion Rate
+                            </label>
+                            <p className="text-purple-300 text-xs md:text-sm mb-2">1 point = $ ?</p>
+                            <input
+                                type="number"
+                                value={localRate.money}
+                                onChange={(e) => setLocalRate({...localRate, money: parseFloat(e.target.value) || 1})}
+                                className="w-full px-4 py-2 rounded-lg bg-purple-900/50 text-white border border-purple-600/30 focus:outline-none focus:border-purple-500"
+                                min="0.01"
+                                step="0.01"
+                            />
+                        </div>
+
+                        <div>
+                            <label className="block text-white font-semibold mb-2 text-sm md:text-base">
+                                Time Conversion Rate
+                            </label>
+                            <p className="text-purple-300 text-xs md:text-sm mb-2">1 point = ? minutes</p>
+                            <input
+                                type="number"
+                                value={localRate.time}
+                                onChange={(e) => setLocalRate({...localRate, time: parseFloat(e.target.value) || 10})}
+                                className="w-full px-4 py-2 rounded-lg bg-purple-900/50 text-white border border-purple-600/30 focus:outline-none focus:border-purple-500"
+                                min="1"
+                                step="1"
+                            />
+                        </div>
+
+                        <button
+                            onClick={handleSave}
+                            className="w-full bg-purple-600 text-white py-3 rounded-lg font-semibold hover:bg-purple-700 transition"
+                        >
+                            Save Conversion Settings
+                        </button>
+
+                        <div className="bg-purple-900/30 rounded-lg p-4">
+                            <h3 className="text-white font-semibold mb-3 text-sm md:text-base">Manage Categories</h3>
+                            
+                            <div className="mb-4">
+                                <div className="flex gap-2">
+                                    <input
+                                        type="text"
+                                        value={newCategory}
+                                        onChange={(e) => setNewCategory(e.target.value)}
+                                        onKeyPress={(e) => e.key === 'Enter' && handleAddCategory()}
+                                        className="flex-1 px-4 py-2 rounded-lg bg-purple-900/50 text-white placeholder-purple-400 border border-purple-600/30 focus:outline-none focus:border-purple-500"
+                                        placeholder="New category name"
+                                    />
+                                    <button
+                                        onClick={handleAddCategory}
+                                        className="px-4 md:px-6 py-2 bg-green-500 hover:bg-green-600 text-white rounded-lg font-semibold transition text-sm md:text-base"
+                                    >
+                                        Add
+                                    </button>
+                                </div>
+                            </div>
+
+                            <div className="space-y-2">
+                                {categories.map(cat => (
+                                    <div key={cat} className="flex justify-between items-center bg-purple-900/50 rounded-lg px-4 py-2">
+                                        <span className="text-white text-sm md:text-base mobile-text-wrap break-words">{cat}</span>
+                                        <button
+                                            onClick={() => onDeleteCategory(cat)}
+                                            className="text-red-300 hover:text-red-100 transition text-lg"
+                                            title="Delete category"
+                                        >
+                                            ✕
+                                        </button>
+                                    </div>
+                                ))}
+                            </div>
+                            
+                            <p className="text-purple-300 text-xs md:text-sm mt-3">
+                                Note: Deleting a category moves its habits to the first available category.
+                            </p>
+                        </div>
+
+                        <div className="bg-purple-900/30 rounded-lg p-4">
+                            <h3 className="text-white font-semibold mb-2 text-sm md:text-base">About</h3>
+                            <p className="text-purple-300 text-xs md:text-sm">
+                                ☁️ Locked In App - Your habit tracker with cloud sync! All your data is securely stored in Firebase and syncs instantly across all your devices.
+                            </p>
+                        </div>
+                    </div>
+                </div>
+            );
+        };
+
+        const TomorrowTab = ({ habits, onComplete, onNotComplete, onDelete, onEdit, difficultyPoints, formatTime }) => {
+            const tomorrow = new Date();
+            tomorrow.setDate(tomorrow.getDate() + 1);
+            const tomorrowString = tomorrow.toDateString();
+            const tomorrowHabits = habits.filter(habit => habit.deadline && new Date(habit.deadline).toDateString() === tomorrowString);
+            const totalTime = tomorrowHabits.reduce((sum, habit) => sum + (habit.duration || 0), 0);
+            return (
+                <div className="space-y-6"><div className="glass rounded-lg p-4 md:p-6">
+                    <div className="flex justify-between items-center mb-4 gap-4">
+                        <div className="min-w-0 flex-1">
+                            <h2 className="text-xl md:text-2xl font-bold text-white mb-1">☀️ Tomorrow's Tasks</h2>
+                            <p className="text-purple-300 text-xs md:text-sm">{tomorrow.toLocaleDateString('en-US', { weekday: 'long', month: 'long', day: 'numeric' })}</p>
+                        </div>
+                        {totalTime > 0 && (<div className="text-right flex-shrink-0"><div className="text-xs md:text-sm text-purple-300">Total Time</div><div className="text-xl md:text-2xl font-bold text-white">{formatTime(totalTime)}</div></div>)}
+                    </div>
+                    {tomorrowHabits.length === 0 ? (<div className="text-center py-12"><div className="text-6xl mb-4">😌</div><p className="text-white text-xl mb-2">No tasks due tomorrow!</p></div>) : (
+                        <div className="space-y-3">{tomorrowHabits.sort((a, b) => difficultyPoints[b.difficulty] - difficultyPoints[a.difficulty]).map(habit => (<HabitCard key={habit.id} habit={habit} onComplete={onComplete} onNotComplete={onNotComplete} onDelete={onDelete} onEdit={onEdit} difficultyPoints={difficultyPoints} />))}</div>
+                    )}
+                </div></div>
+            );
+        };
+
+        const UpNextTab = ({ habits, onComplete, onNotComplete, onDelete, onEdit, difficultyPoints, formatTime }) => {
+            const tomorrow = new Date(); tomorrow.setDate(tomorrow.getDate() + 1); tomorrow.setHours(23, 59, 59, 999);
+            const upcomingHabits = habits.filter(habit => habit.deadline && new Date(habit.deadline) > tomorrow);
+            const totalTime = upcomingHabits.reduce((sum, habit) => sum + (habit.duration || 0), 0);
+            return (
+                <div className="space-y-6"><div className="glass rounded-lg p-4 md:p-6">
+                    <div className="flex justify-between items-center mb-4 gap-4">
+                        <div className="min-w-0 flex-1">
+                            <h2 className="text-xl md:text-2xl font-bold text-white mb-1">📅 Upcoming Tasks</h2>
+                            <p className="text-purple-300 text-xs md:text-sm">Tasks after tomorrow</p>
+                        </div>
+                        {totalTime > 0 && (<div className="text-right flex-shrink-0"><div className="text-xs md:text-sm text-purple-300">Total Time</div><div className="text-xl md:text-2xl font-bold text-white">{formatTime(totalTime)}</div></div>)}
+                    </div>
+                    {upcomingHabits.length === 0 ? (<div className="text-center py-12"><div className="text-6xl mb-4">📝</div><p className="text-white text-xl mb-2">No upcoming tasks!</p></div>) : (
+                        <div className="space-y-3">{upcomingHabits.sort((a, b) => new Date(a.deadline) - new Date(b.deadline) || difficultyPoints[b.difficulty] - difficultyPoints[a.difficulty]).map(habit => (<HabitCard key={habit.id} habit={habit} onComplete={onComplete} onNotComplete={onNotComplete} onDelete={onDelete} onEdit={onEdit} difficultyPoints={difficultyPoints} />))}</div>
+                    )}
+                </div></div>
+            );
+        };
+
+        const HistoryTab = ({ completionHistory, difficultyPoints, onUndo }) => {
+            const [selectedDate, setSelectedDate] = useState('');
+            const [selectedCategory, setSelectedCategory] = useState('all');
+            const [selectedType, setSelectedType] = useState('all');
+
+            const formatTime = (minutes) => {
+                if (minutes < 60) {
+                    return `${minutes} min`;
+                }
+                
+                const days = Math.floor(minutes / (24 * 60));
+                const hours = Math.floor((minutes % (24 * 60)) / 60);
+                const mins = Math.floor(minutes % 60);
+                
+                const parts = [];
+                if (days > 0) parts.push(`${days} day${days !== 1 ? 's' : ''}`);
+                if (hours > 0) parts.push(`${hours} hr${hours !== 1 ? 's' : ''}`);
+                if (mins > 0) parts.push(`${mins} min`);
+                
+                return parts.join(' ');
+            };
+
+            // Get unique categories from history
+            const categories = ['all', ...new Set(completionHistory.map(h => h.category).filter(Boolean))];
+
+            // Filter history
+            const filteredHistory = completionHistory.filter(entry => {
+                const entryDate = new Date(entry.completedAt).toISOString().split('T')[0];
+                const dateMatch = !selectedDate || entryDate === selectedDate;
+                const categoryMatch = selectedCategory === 'all' || entry.category === selectedCategory;
+                const typeMatch = selectedType === 'all' || entry.habitType === selectedType;
+                return dateMatch && categoryMatch && typeMatch;
+            });
+
+            // Calculate stats
+            const totalPoints = filteredHistory.reduce((sum, entry) => sum + entry.pointsEarned, 0);
+            const totalTime = filteredHistory.reduce((sum, entry) => sum + (entry.duration || 0), 0);
+            const positiveCount = filteredHistory.filter(e => e.habitType === 'positive').length;
+            const negativeCount = filteredHistory.filter(e => e.habitType === 'negative').length;
+
+            return (
+                <div className="space-y-4">
+                    <div className="glass rounded-lg p-4 md:p-6">
+                        <h2 className="text-xl md:text-2xl font-bold text-white mb-4">📜 Completion History</h2>
+                        
+                        {/* Filters */}
+                        <div className="grid grid-cols-1 md:grid-cols-3 gap-4 mb-6">
+                            <div>
+                                <label className="block text-white font-semibold mb-2 text-sm">Filter by Date</label>
+                                <input
+                                    type="date"
+                                    value={selectedDate}
+                                    onChange={(e) => setSelectedDate(e.target.value)}
+                                    className="w-full px-4 py-2 rounded-lg bg-purple-900/50 text-white border border-purple-600/30 focus:outline-none focus:border-purple-500"
+                                />
+                            </div>
+                            <div>
+                                <label className="block text-white font-semibold mb-2 text-sm">Filter by Category</label>
+                                <select
+                                    value={selectedCategory}
+                                    onChange={(e) => setSelectedCategory(e.target.value)}
+                                    className="w-full px-4 py-2 rounded-lg bg-purple-900/50 text-white border border-purple-600/30 focus:outline-none focus:border-purple-500"
+                                >
+                                    {categories.map(cat => (
+                                        <option key={cat} value={cat} className="bg-purple-900">
+                                            {cat === 'all' ? 'All Categories' : cat}
+                                        </option>
+                                    ))}
+                                </select>
+                            </div>
+                            <div>
+                                <label className="block text-white font-semibold mb-2 text-sm">Filter by Type</label>
+                                <select
+                                    value={selectedType}
+                                    onChange={(e) => setSelectedType(e.target.value)}
+                                    className="w-full px-4 py-2 rounded-lg bg-purple-900/50 text-white border border-purple-600/30 focus:outline-none focus:border-purple-500"
+                                >
+                                    <option value="all" className="bg-purple-900">All Types</option>
+                                    <option value="positive" className="bg-purple-900">Positive</option>
+                                    <option value="negative" className="bg-purple-900">Negative</option>
+                                </select>
+                            </div>
+                        </div>
+
+                        {/* Stats Summary */}
+                        {filteredHistory.length > 0 && (
+                            <div className="grid grid-cols-2 md:grid-cols-4 gap-4 mb-6">
+                                <div className="bg-purple-900/30 rounded-lg p-4 text-center">
+                                    <div className="text-2xl font-bold text-white">{filteredHistory.length}</div>
+                                    <div className="text-purple-300 text-xs">Total Completions</div>
+                                </div>
+                                <div className="bg-purple-900/30 rounded-lg p-4 text-center">
+                                    <div className="text-2xl font-bold text-white">{totalPoints >= 0 ? '+' : ''}{totalPoints}</div>
+                                    <div className="text-purple-300 text-xs">Points Earned</div>
+                                </div>
+                                <div className="bg-purple-900/30 rounded-lg p-4 text-center">
+                                    <div className="text-2xl font-bold text-white">{formatTime(totalTime)}</div>
+                                    <div className="text-purple-300 text-xs">Total Time</div>
+                                </div>
+                                <div className="bg-purple-900/30 rounded-lg p-4 text-center">
+                                    <div className="text-sm font-bold text-white">
+                                        <span className="text-green-300">{positiveCount}</span> / <span className="text-red-300">{negativeCount}</span>
+                                    </div>
+                                    <div className="text-purple-300 text-xs">Positive / Negative</div>
+                                </div>
+                            </div>
+                        )}
+
+                        {/* Clear Filters */}
+                        {(selectedDate || selectedCategory !== 'all' || selectedType !== 'all') && (
+                            <button
+                                onClick={() => {
+                                    setSelectedDate('');
+                                    setSelectedCategory('all');
+                                    setSelectedType('all');
+                                }}
+                                className="mb-4 text-purple-300 hover:text-white underline text-sm"
+                            >
+                                Clear all filters
+                            </button>
+                        )}
+
+                        {/* History List */}
+                        <div className="space-y-3">
+                            {filteredHistory.length === 0 ? (
+                                <div className="text-center py-8">
+                                    <p className="text-white text-lg mb-2">No completions found</p>
+                                    <p className="text-purple-300 text-sm">
+                                        {selectedDate || selectedCategory !== 'all' || selectedType !== 'all' 
+                                            ? 'Try adjusting your filters' 
+                                            : 'Complete some habits to see your history here'}
+                                    </p>
+                                </div>
+                            ) : (
+                                filteredHistory.map(entry => (
+                                    <div 
+                                        key={entry.id} 
+                                        className={`bg-purple-900/30 rounded-lg p-3 md:p-4 border-l-4 ${
+                                            entry.habitType === 'positive' ? 'border-green-400' : 'border-red-400'
+                                        }`}
+                                    >
+                                        <div className="flex flex-col md:flex-row md:justify-between gap-3">
+                                            <div className="flex-1 min-w-0">
+                                                <h3 className="text-base md:text-lg font-bold text-white mb-1 mobile-text-wrap break-words">
+                                                    {entry.habitName}
+                                                </h3>
+                                                <div className="flex gap-2 flex-wrap mb-2">
+                                                    <span className={`px-2 py-1 rounded text-xs font-semibold ${
+                                                        entry.habitType === 'positive' 
+                                                            ? 'bg-green-500/30 text-green-100' 
+                                                            : 'bg-red-500/30 text-red-100'
+                                                    }`}>
+                                                        {entry.habitType}
+                                                    </span>
+                                                    <span className="px-2 py-1 rounded text-xs font-semibold bg-purple-500/30 text-purple-100">
+                                                        {entry.difficulty}
+                                                    </span>
+                                                    {entry.category && (
+                                                        <span className="px-2 py-1 rounded text-xs font-semibold bg-blue-500/30 text-blue-100">
+                                                            📁 {entry.category}
+                                                        </span>
+                                                    )}
+                                                    {entry.duration > 0 && (
+                                                        <span className="px-2 py-1 rounded text-xs font-semibold bg-cyan-500/30 text-cyan-100">
+                                                            ⏱️ {formatTime(entry.duration)}
+                                                        </span>
+                                                    )}
+                                                </div>
+                                            </div>
+                                            <div className="flex md:flex-col items-center md:items-end gap-2 md:gap-1 flex-shrink-0">
+                                                <div className="flex-1 md:flex-none text-center md:text-right">
+                                                    <div className={`text-xl md:text-2xl font-bold ${
+                                                        entry.pointsEarned >= 0 ? 'text-green-300' : 'text-red-300'
+                                                    }`}>
+                                                        {entry.pointsEarned >= 0 ? '+' : ''}{entry.pointsEarned}
+                                                    </div>
+                                                    <div className="text-purple-300 text-xs">
+                                                        {new Date(entry.completedAt).toLocaleDateString()}
+                                                    </div>
+                                                    <div className="text-purple-400 text-xs">
+                                                        {new Date(entry.completedAt).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })}
+                                                    </div>
+                                                </div>
+                                                <button
+                                                    onClick={() => {
+                                                        if (confirm(`Undo this completion? This will reverse ${entry.pointsEarned >= 0 ? '+' : ''}${entry.pointsEarned} points and restore the habit.`)) {
+                                                            onUndo(entry);
+                                                        }
+                                                    }}
+                                                    className="px-3 md:px-4 py-2 bg-orange-600 hover:bg-orange-700 text-white rounded-lg font-semibold transition text-xs md:text-sm whitespace-nowrap"
+                                                    title="Undo this completion"
+                                                >
+                                                    ↺ Undo
+                                                </button>
+                                            </div>
+                                        </div>
+                                    </div>
+                                ))
+                            )}
+                        </div>
+                    </div>
+                </div>
+            );
+        };
+
+        // Render the app
+        ReactDOM.render(<HabitTrackerApp />, document.getElementById('root'));
+    </script>
+</body>
+</html>
